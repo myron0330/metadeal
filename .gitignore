@@ -99,3 +99,12 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# pyc
+.pyc
+
+# idea
+.idea
+
+# xml
+*.xml
