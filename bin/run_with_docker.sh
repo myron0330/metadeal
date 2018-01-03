@@ -1,1 +1,1 @@
-export ORACLE_HOME=$ORACLE_HOME:/root/anaconda/lib && PATH=$PATH:/root/anaconda/lib &&  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/anaconda/lib && source datayes-init && uwsgi -x uwsgi.xml
+uwsgi -x uwsgi.xml
