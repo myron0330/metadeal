@@ -1,10 +1,4 @@
 # -*- coding: UTF-8 -*-
 # **********************************************************************************#
-#     File:
+#     File: Basic enumerates.
 # **********************************************************************************#
-import sys
-from lib.web import server
-
-
-if __name__ == "__main__":
-    server.run(host='0.0.0.0', debug=False, threaded=True, port=8888)

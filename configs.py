@@ -36,4 +36,10 @@ mongodb_port = int(config.get('mongodb', 'port'))
 mongodb_path = config.get('mongodb', 'db_path')
 
 
+################################################################
+# API config
+################################################################
+api_token = config.get('api_client', 'token')
+
+
 print current_path
