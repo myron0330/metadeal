@@ -4,7 +4,7 @@
 # **********************************************************************************#
 
 
-class DataPoolMcs(type):
+class MarketPoolMcs(type):
 
     def __new__(mcs, name, bases, attributes):
         """
@@ -15,27 +15,24 @@ class DataPoolMcs(type):
         return type.__new__(mcs, name, bases, attributes)
 
 
-class DataPool(object):
+class MarketPool(object):
     """
-    Data pool in single instance.
+    Market pool
     """
-    __metaclass__ = DataPoolMcs
+    __metaclass__ = MarketPoolMcs
 
     def __new__(cls, *args, **kwargs):
         """
-        Single instance data pool.
+        market pool as single instance
         """
         if not hasattr(cls, '_instance'):
-            cls._instance = super(DataPool, cls).__new__(cls)
+            cls._instance = super(MarketPool, cls).__new__(cls)
         return cls._instance
-
-    daily_pool = None
-    history_pool = None
 
     def test(self):
         print self.__pool__
 
 
 if __name__ == '__main__':
-    data = DataPool()
+    data = MarketPool()
     data.test()
