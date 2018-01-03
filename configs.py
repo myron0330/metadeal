@@ -26,3 +26,14 @@ logger = logging.getLogger("main")
 ################################################################
 redis_host = config.get('redis', 'host')
 redis_port = int(config.get('redis', 'port'))
+
+
+################################################################
+# mongodb client
+################################################################
+mongodb_host = config.get('mongodb', 'host')
+mongodb_port = int(config.get('mongodb', 'port'))
+mongodb_path = config.get('mongodb', 'db_path')
+
+
+print current_path
