@@ -26,3 +26,9 @@ logger = logging.getLogger("main")
 ################################################################
 redis_host = config.get('redis', 'host')
 redis_port = int(config.get('redis', 'port'))
+
+
+################################################################
+# API config
+################################################################
+api_token = config.get('api_client', 'token')
