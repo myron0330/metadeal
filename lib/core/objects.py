@@ -17,7 +17,7 @@ class ValueObject(object):
     @classmethod
     def from_dict(cls, kwargs):
         """
-        Query from dict.
+        Query from dict
         """
         return cls(**kwargs)
 
