@@ -2,6 +2,7 @@
 # **********************************************************************************#
 #     File: Data pools.
 # **********************************************************************************#
+from utils.decorator_utils import singleton
 
 
 class MarketPoolMcs(type):
@@ -15,19 +16,12 @@ class MarketPoolMcs(type):
         return type.__new__(mcs, name, bases, attributes)
 
 
+@singleton
 class MarketPool(object):
     """
     Market pool
     """
     __metaclass__ = MarketPoolMcs
-
-    def __new__(cls, *args, **kwargs):
-        """
-        market pool as single instance
-        """
-        if not hasattr(cls, '_instance'):
-            cls._instance = super(MarketPool, cls).__new__(cls)
-        return cls._instance
 
     def test(self):
         print self.__pool__

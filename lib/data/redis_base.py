@@ -7,13 +7,6 @@ import redis
 from configs import redis_host, redis_port
 
 
-class RedisCollection(object):
-    """
-    Redis collections enumerate
-    """
-    pass
-
-
 class RedisQueue(object):
 
     def __init__(self, client, key='queue'):

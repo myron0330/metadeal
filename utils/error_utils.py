@@ -43,6 +43,7 @@ class SchemaException(Exception):
 class Errors(object):
 
     INVALID_SCHEMA_ID_INPUT = SchemaException(error(500, '[SchemaException] INVALID Schema ID INPUT.'))
+    INVALID_SCHEMA_TYPE = SchemaException(error(500, '[SchemaException] INVALID Schema type.'))
 
     @classmethod
     def enumerates(cls):
