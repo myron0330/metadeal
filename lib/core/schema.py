@@ -4,8 +4,12 @@
 # **********************************************************************************#
 import time
 from uuid import uuid1
+from utils.error_utils import Errors
 from . objects import ValueObject
-from . enums import SecuritiesType
+from . enums import (
+    SecuritiesType,
+    SchemaType
+)
 from .. const import (
     DEFAULT_USER_NAME,
     CASH_BASE,
@@ -350,9 +354,32 @@ class TradeSchema(ValueObject):
         )
 
 
+def switch_schema(schema_type):
+    """
+    Switch schema
+    Args:
+        schema_type(string): schema type
+
+    Returns:
+        schema(obj): schema
+    """
+    if schema_type == SchemaType.portfolio:
+        schema = PortfolioSchema
+    elif schema_type == SchemaType.order:
+        schema = OrderSchema
+    elif schema_type == SchemaType.position:
+        schema = PositionSchema
+    elif schema_type == SchemaType.trade:
+        schema = TradeSchema
+    else:
+        raise Errors.INVALID_SCHEMA_TYPE
+    return schema
+
+
 __all__ = [
     'PortfolioSchema',
     'OrderSchema',
     'PositionSchema',
-    'TradeSchema'
+    'TradeSchema',
+    'switch_schema'
 ]

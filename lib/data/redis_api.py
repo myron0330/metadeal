@@ -5,7 +5,8 @@
 import json
 import time
 from utils.error_utils import Errors
-from . redis_base import redis_client, redis_queue, RedisCollection
+from . redis_base import redis_client, redis_queue
+from .. core.collection import switch_collection
 
 
 def redis_lock(name):
@@ -84,16 +85,6 @@ def _dump_to_(collection, mapping):
         redis_client.hmset(collection, mapping)
 
 
-def _switch_collection(schema_type):
-    """
-    Switch to proper collection
-
-    Args:
-        schema_type(schema type): schema type.
-    """
-    raise NotImplementedError
-
-
 def query_from_redis(schema_type, schema_id=None):
     """
     Query data from redis
@@ -102,7 +93,7 @@ def query_from_redis(schema_type, schema_id=None):
         schema_type(string): schema type
         schema_id(None, str or list): None--> all;
     """
-    collection = _switch_collection(schema_type)
+    collection = switch_collection('redis', schema_type)
     query_data = _query_from_(collection, schema_id)
     # todo. deal with query data.
     return query_data
@@ -116,7 +107,7 @@ def dump_schema_to_redis(schema_type, schema):
         schema_type(string): schema type
         schema(schema or dict of schema): schema object
     """
-    collection = _switch_collection(schema_type)
+    collection = switch_collection('redis', schema_type)
     if isinstance(schema, dict):
         data = \
             {schema_id: curr_schema.to_redis_item() for schema_id, curr_schema in schema.iteritems()}
@@ -154,5 +145,5 @@ def delete_items_in_redis(schema_type, keys):
         schema_type(string): schema type
         keys(list): keys
     """
-    collection = _switch_collection(schema_type)
+    collection = switch_collection('redis', chema_type)
     redis_client.hdel(collection, *keys)

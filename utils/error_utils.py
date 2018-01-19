@@ -40,10 +40,19 @@ class SchemaException(Exception):
     pass
 
 
+class DatabaseException(Exception):
+    """
+    Database exception.
+    """
+    pass
+
+
 class Errors(object):
 
     INVALID_SCHEMA_ID_INPUT = SchemaException(error(500, '[SchemaException] INVALID Schema ID INPUT.'))
     INVALID_SCHEMA_TYPE = SchemaException(error(500, '[SchemaException] INVALID Schema type.'))
+
+    INVALID_DATABASE = DatabaseException(error(500, '[DatabaseException] INVALID database'))
 
     @classmethod
     def enumerates(cls):
@@ -52,4 +61,4 @@ class Errors(object):
     @classmethod
     def error_types(cls):
         return tuple([Exception, ImportError, NotImplementedError,
-                      SchemaException])
+                      SchemaException, DatabaseException])
