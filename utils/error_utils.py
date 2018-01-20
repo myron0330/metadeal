@@ -47,12 +47,21 @@ class DatabaseException(Exception):
     pass
 
 
+class TradeException(Exception):
+    """
+    Trade exception.
+    """
+    pass
+
+
 class Errors(object):
 
     INVALID_SCHEMA_ID_INPUT = SchemaException(error(500, '[SchemaException] INVALID Schema ID INPUT.'))
     INVALID_SCHEMA_TYPE = SchemaException(error(500, '[SchemaException] INVALID Schema type.'))
 
-    INVALID_DATABASE = DatabaseException(error(500, '[DatabaseException] INVALID database'))
+    INVALID_DATABASE = DatabaseException(error(500, '[DatabaseException] INVALID database.'))
+
+    INVALID_FILLED_AMOUNT = TradeException(error(500, '[TradeException] INVALID filled amount.'))
 
     @classmethod
     def enumerates(cls):
@@ -61,4 +70,4 @@ class Errors(object):
     @classmethod
     def error_types(cls):
         return tuple([Exception, ImportError, NotImplementedError,
-                      SchemaException, DatabaseException])
+                      SchemaException, DatabaseException, TradeException])

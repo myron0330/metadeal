@@ -21,7 +21,7 @@ try:
     logging.config.fileConfig(log_path)
     logger = logging.getLogger("main")
 except IOError, _:
-    pass
+    logger = None
 
 
 ################################################################

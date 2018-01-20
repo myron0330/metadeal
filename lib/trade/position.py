@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-from . dividend import Dividend
-from .. utils.error_utils import Errors
+from utils.error_utils import Errors
 
 
 class Position(object):
@@ -86,8 +85,7 @@ class PMSPosition(Position):
             query_data(dict): query data
         """
         position = cls(**query_data)
-        dividends = query_data.get('dividends')
-        position.dividends = Dividend(**dividends) if dividends else None
+        position.dividends = query_data.get('dividends')
         return position
 
     def to_database_item(self):
