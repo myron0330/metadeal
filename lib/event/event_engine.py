@@ -4,8 +4,8 @@
 # **********************************************************************************#
 from queue import Queue, Empty
 from threading import Thread
+from utils.dict_utils import DefaultDict
 from . event_base import Event, EventType
-from .. utils.dict_utils import DefaultDict
 
 
 class EventEngine(object):
@@ -30,7 +30,7 @@ class EventEngine(object):
 
     def stop(self):
         """
-        Stop the event engine.
+        Stop the event engine
         """
         self._active = False
         self._processor.join()
@@ -50,7 +50,7 @@ class EventEngine(object):
             event_type(string): event type.
             handler(func): callable function.
         """
-        if isinstance(handler, (list, set)):
+        if isinstance(handler, (list, set, tuple)):
             self._event_handlers[event_type] |= set(handler)
         else:
             self._event_handlers[event_type].add(handler)
@@ -62,7 +62,7 @@ class EventEngine(object):
             event_type(string): event type.
             handler(func): callable function.
         """
-        if isinstance(handler, (list, set)):
+        if isinstance(handler, (list, set, tuple)):
             self._event_handlers[event_type] -= set(handler)
         else:
             self._event_handlers[event_type].remove(handler)
