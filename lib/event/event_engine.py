@@ -85,6 +85,6 @@ class EventEngine(object):
             event(Event): event instance.
         """
         if event.event_type in self._event_handlers:
-            map(lambda handler: handler(event), self._event_handlers[event.event_type])
+            map(lambda handler: handler(**event.event_parameters), self._event_handlers[event.event_type])
 
-        map(lambda handler: handler(event), self._event_handlers[EventType.general])
+        map(lambda handler: handler(**event.event_parameters), self._event_handlers[EventType.general])
