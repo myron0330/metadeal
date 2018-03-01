@@ -311,17 +311,17 @@ class PMSOrder(BaseOrder):
         Generate new order from request
 
         Args:
-            request(dict): request data
+            request(dict): request database
         """
         return cls(**request)
 
     @classmethod
     def from_query(cls, query_data):
         """
-        Recover existed order from query data
+        Recover existed order from query database
 
         Args:
-            query_data(dict): query data
+            query_data(dict): query database
         """
         query_data['amount'] = query_data.pop('order_amount')
         order = cls(**query_data)

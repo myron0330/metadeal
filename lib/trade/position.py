@@ -72,17 +72,17 @@ class PMSPosition(Position):
         Generate new position from request
 
         Args:
-            request(dict): request data
+            request(dict): request database
         """
         return cls(**request)
 
     @classmethod
     def from_query(cls, query_data):
         """
-        Recover existed order from query data
+        Recover existed order from query database
 
         Args:
-            query_data(dict): query data
+            query_data(dict): query database
         """
         position = cls(**query_data)
         position.dividends = query_data.get('dividends')
@@ -221,17 +221,17 @@ class FuturesPosition(LongShortPosition):
         Generate new FuturesPosition from request
 
         Args:
-            request(dict): request data
+            request(dict): request database
         """
         return cls(**request)
 
     @classmethod
     def from_query(cls, query_data):
         """
-        Recover existed FuturesPosition from query data
+        Recover existed FuturesPosition from query database
 
         Args:
-            query_data(dict): query data
+            query_data(dict): query database
         """
         position = cls(**query_data)
         # position.long_cost = position.total_long_cost / position.multiplier / position.long_amount if \

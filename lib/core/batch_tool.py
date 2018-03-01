@@ -5,7 +5,7 @@
 from utils.error_utils import Errors
 from . enums import SchemaType
 from . collection import MongodbCollections
-from .. data.mongodb_base import BatchTool
+from .. database.mongodb_base import BatchTool
 
 
 class MongodbBatchTools(object):

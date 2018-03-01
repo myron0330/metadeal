@@ -114,7 +114,7 @@ class PortfolioSchema(ValueObject):
         Generate from database item
 
         Args:
-            item(dict): query data
+            item(dict): query database
         """
         item['position_base'] = _decoding_base_info(item['position_base'])
         item['cost_base'] = _decoding_base_info(item['cost_base'])
@@ -184,7 +184,7 @@ class PositionSchema(ValueObject):
         Generate from query item
 
         Args:
-            item(dict): query data
+            item(dict): query database
             securities_type(string): securities type
         """
         portfolio_id = item['portfolio_id']
@@ -267,7 +267,7 @@ class OrderSchema(ValueObject):
         Generate from query item
 
         Args:
-            item(dict): query data
+            item(dict): query database
         """
         portfolio_id = item['portfolio_id']
         date = item['date']
@@ -332,7 +332,7 @@ class TradeSchema(ValueObject):
         Generate from query item
 
         Args:
-            item(dict): query data
+            item(dict): query database
         """
         portfolio_id = item['portfolio_id']
         date = item['date']

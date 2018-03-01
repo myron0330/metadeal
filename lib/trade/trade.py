@@ -54,17 +54,17 @@ class PMSTrade(Trade):
         Generate new trade from request
 
         Args:
-            request(dict): request data
+            request(dict): request database
         """
         return cls(**request)
 
     @classmethod
     def from_query(cls, query_data):
         """
-        Recover existed order from query data
+        Recover existed order from query database
 
         Args:
-            query_data(dict): query data
+            query_data(dict): query database
         """
         return cls.from_request(query_data)
 

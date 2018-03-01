@@ -10,7 +10,7 @@ from .. core.batch_tool import switch_batch_tool
 def _query_from_(collection, schema_cls, portfolio_id=None, date=None,
                  key='portfolio_id', query_parameters=None, **kwargs):
     """
-    Query collection data from database by securities type
+    Query collection database from database by securities type
 
     Args:
         collection(collection): mongodb collection
@@ -21,7 +21,7 @@ def _query_from_(collection, schema_cls, portfolio_id=None, date=None,
         securities_type(string): securities type
 
     Returns:
-        list: collection data
+        list: collection database
     """
     args, result = dict(), dict()
     query_parameters = query_parameters or dict()

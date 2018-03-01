@@ -106,7 +106,7 @@ class DrEngineManager(QtGui.QWidget):
     #----------------------------------------------------------------------
     def updateLog(self, event):
         """更新日志"""
-        log = event.dict_['data']
+        log = event.dict_['database']
         content = '\t'.join([log.logTime, log.logContent])
         self.logMonitor.append(content)
     

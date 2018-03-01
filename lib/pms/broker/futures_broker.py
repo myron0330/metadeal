@@ -21,8 +21,8 @@ from ... utils.dict_utils import DefaultDict, CompositeDict
 from ... utils.linked_list_utils import LinkedList, Node
 from ... utils.error_utils import Errors
 from ... utils.decorator_utils import mutex_lock, scramble_redis_lock
-from ... data.database_api import get_futures_limit_price
-from ... data.redis_base import redis_queue, RedisCollection
+from ... database.database_api import get_futures_limit_price
+from ... database.redis_base import redis_queue, RedisCollection
 from ... market.market_quote import MarketQuote
 
 
@@ -138,7 +138,7 @@ class FuturesBroker(object):
     @mutex_lock
     def transact_minute(self, bar_data):
         """
-        Transact for orders by minute bar data
+        Transact for orders by minute bar database
         """
         linked_list = self.pool[bar_data.security_id]
         if not linked_list.get_length():
@@ -200,11 +200,11 @@ class FuturesBroker(object):
 
 def transact_futures_bar(node, bar_data, volume_ceiling, limit_move_price, nodes_positions):
     """
-    Transact using bar data
+    Transact using bar database
 
     Args:
         node(node): node
-        bar_data(data): bar data
+        bar_data(database): bar database
         volume_ceiling(dict): 各账户某分钟线可交易最大volume
         limit_move_price(dict): 当日各合约涨跌停价格
         nodes_positions(dict): 参与symbol撮合的组合持仓document

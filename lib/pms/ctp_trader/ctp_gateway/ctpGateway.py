@@ -341,7 +341,7 @@ class CtpMdApi(MdApi):
         tick.time = '.'.join([data['UpdateTime'], str(data['UpdateMillisec']/100)])
         
         # 这里由于交易所夜盘时段的交易日数据有误，所以选择本地获取
-        #tick.date = data['TradingDay']
+        #tick.date = database['TradingDay']
         tick.date = datetime.now().strftime('%Y%m%d')   
         
         tick.openPrice = data['OpenPrice']
@@ -1449,7 +1449,7 @@ def test():
     import sys
     
     def print_log(event):
-        log = event.dict_['data']
+        log = event.dict_['database']
         print ':'.join([log.logTime, log.logContent])
     
     app = QtCore.QCoreApplication(sys.argv)    

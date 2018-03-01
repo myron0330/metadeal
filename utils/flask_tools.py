@@ -27,7 +27,7 @@ def get_headers():
 
 def pre_process_request_data(request_data):
     """
-    Pro process request data.
+    Pro process request database.
     """
     if request_data is None:
         request_data = dict()
@@ -74,11 +74,11 @@ def cross_site(func):
 def upload_tables_data(file_name, data,
                        return_type='frame'):
     """
-    Upload tables data, support excel and csv.
+    Upload tables database, support excel and csv.
 
     Args:
          file_name(string): file name
-         data(string): data
+         data(string): database
          return_type(string): type of return value
     """
     encoding = chardet.detect(data).get('encoding')
@@ -98,10 +98,10 @@ def upload_tables_data(file_name, data,
 def download_excel_from_(frame, file_name='excel.xlsx',
                          return_type='string_io'):
     """
-    Download tables data
+    Download tables database
 
     Args:
-         frame(frame): data frame
+         frame(frame): database frame
          file_name(string): file name
          return_type(string): type of return value
     """

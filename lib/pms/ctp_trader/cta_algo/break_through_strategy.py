@@ -83,7 +83,7 @@ class BreakThroughSignal(object):
     @staticmethod
     def _generate_bar_data(fragment):
         '''
-        Generate the bar data using data fragment from history data.
+        Generate the bar database using database fragment from history database.
 
         :param fragment: pandas.DataFrame.
         :return: list of float. [open, close, high, low, volume]
@@ -130,7 +130,7 @@ class BreakThroughStrategy(CtaTemplate):
                 self.onBar(self._bar)
             else:
                 self.writeCtaLog(content='No available '
-                                         'bar data in {}'.format(tick.datetime))
+                                         'bar database in {}'.format(tick.datetime))
             bar = CtaBarData()
             bar.vtSymbol = tick.vtSymbol
             bar.symbol = tick.symbol

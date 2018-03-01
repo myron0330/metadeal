@@ -4,7 +4,7 @@
 # **********************************************************************************#
 from lib.core.enums import SchemaType
 from lib.core.schema import *
-from lib.data.mongodb_api import dump_schema_to_mongodb, query_from_mongodb
+from lib.database.mongodb_api import dump_schema_to_mongodb, query_from_mongodb
 
 
 portfolio_schema = PortfolioSchema()
