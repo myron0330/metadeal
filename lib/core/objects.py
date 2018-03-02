@@ -36,3 +36,10 @@ class ValueObject(object):
         """
         for key, value in items.iteritems():
             setattr(self, key, value)
+
+    def __repr__(self):
+        """
+        Representation.
+        """
+        return '{}({})'.format(self.__name__(), ', '.join(['{}={}'.format(key, getattr(self, key))
+                                                           for key in self.__slots__]))

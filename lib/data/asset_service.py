@@ -26,6 +26,7 @@ class AssetType(object):
 
     BASE_FUTURES = 'base_futures'
     CONTINUOUS_FUTURES = 'continuous_futures'
+    DIGITAL_CURRENCY = 'digital_currency'
 
     FUTURES = [BASE_FUTURES, CONTINUOUS_FUTURES]
     ALL = FUTURES
@@ -291,11 +292,13 @@ class ContinuousFuturesAssetInfo(object):
 
 class DigitalCurrencyAssetInfo(AssetInfo):
 
-    def __init__(self, sec_id=None, symbol=None, exchange=None, name=None, asset_type=None,
+    def __init__(self, symbol=None, exchange=None, name=None,
                  list_date=None, last_date=None, other_symbols=None):
-        super(DigitalCurrencyAssetInfo, self).__init__(sec_id=sec_id, symbol=symbol, exchange=exchange,
-                                                       name=name, asset_type=asset_type, list_date=list_date,
-                                                       last_date=last_date, other_symbols=other_symbols)
+        super(DigitalCurrencyAssetInfo, self).__init__(sec_id=symbol, symbol=symbol, exchange=exchange,
+                                                       name=name, asset_type=AssetType.DIGITAL_CURRENCY,
+                                                       list_date=list_date,
+                                                       last_date=last_date,
+                                                       other_symbols=other_symbols)
 
     def __repr__(self):
         return "<DigitalCurrencyAssetInfo symbol={}, name={}, exchange={}, list_date={}>".format(

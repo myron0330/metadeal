@@ -53,6 +53,13 @@ class Gateway(BaseGateway):
         if hasattr(strategy, 'on_order_book'):
             strategy.on_order_book(context, order_book)
 
+    def handle_data(self, strategy, context, **kwargs):
+        """
+        Handle data response
+        """
+        if hasattr(strategy, 'handle_data'):
+            strategy.handle_data(context)
+
     def on_log(self, strategy, context, log, **kwargs):
         """
         On log response

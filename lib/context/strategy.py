@@ -1,16 +1,24 @@
-# -*- coding: utf-8 -*-
-
-"""
-strategy.py
-
-trading strategy
-
-@author: yudi.wu
-"""
+# -*- coding: UTF-8 -*-
+# **********************************************************************************#
+#     File: Strategy FILE
+#   Author: Myron
+# **********************************************************************************#
+from inspect import isfunction
 
 
 def blank_func(any_input):
     pass
+
+
+valid_functions = [
+    'initialize',
+    'handle_data',
+    'on_tick',
+    'on_bar',
+    'on_order',
+    'on_trade',
+    'on_order_book'
+]
 
 
 class TradingStrategy(object):
@@ -22,7 +30,7 @@ class TradingStrategy(object):
     * self.post_trading_day：交易策略-每日盘后用户自定义操作函数
     """
 
-    def __init__(self, initialize=blank_func, handle_data=blank_func, post_trading_day=blank_func):
+    def __init__(self, initialize=blank_func, handle_data=blank_func, **other_functions):
         if not hasattr(initialize, '__call__'):
             raise ValueError('Exception in "TradingStrategy": initialize must be a function!')
         else:
@@ -33,15 +41,32 @@ class TradingStrategy(object):
         else:
             self.handle_data = handle_data
 
-        if post_trading_day and not hasattr(post_trading_day, '__call__'):
-            raise ValueError('Exception in "TradingStrategy": post_trading_day must be a function!')
-        else:
-            self.post_trading_day = post_trading_day
+        self.__dict__.update({attribute: func for attribute, func in other_functions.iteritems()
+                              if self._validate(attribute, func)})
+
+    def get_functions(self):
+        """
+        Get functions
+        """
+        return self.__dict__
+
+    @staticmethod
+    def _validate(attribute, func):
+        """
+        Validate the trading strategy input
+
+        Args:
+            attribute(string): function name
+            func(func): function
+
+        Returns:
+            boolean: validation result
+        """
+        if attribute not in valid_functions or (not isfunction(func)):
+            return False
+        return True
 
     def __repr__(self):
-        return "{class_name}(initialize, handle_data, post_trading_day)".format(
-            class_name=self.__class__.__name__,
-            init=self.initialize,
-            handle_data=self.handle_data,
-            post_trading_day=self.post_trading_day
-        )
+        return "{class_name}({class_func})".format(class_name=self.__class__.__name__,
+                                                   class_func=', '.join([attribute for attribute in valid_functions
+                                                                         if hasattr(self, attribute)]))

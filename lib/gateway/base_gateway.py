@@ -62,6 +62,12 @@ class BaseGateway(object):
         """
         raise NotImplementedError
 
+    def handle_data(self, *args, **kwargs):
+        """
+        Handle data response
+        """
+        raise NotImplementedError
+
     def on_log(self, *args, **kwargs):
         """
         On log response
