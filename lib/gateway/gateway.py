@@ -36,25 +36,29 @@ class Gateway(BaseGateway):
         """
         On order response
         """
-        pass
+        if hasattr(strategy, 'on_order'):
+            strategy.on_order(context, order)
 
     def on_trade(self, strategy, context, trade, **kwargs):
         """
         On tick response
         """
-        pass
+        if hasattr(strategy, 'on_trade'):
+            strategy.on_trade(context, trade)
 
     def on_order_book(self, strategy, context, order_book, **kwargs):
         """
         On order book response
         """
-        pass
+        if hasattr(strategy, 'on_order_book'):
+            strategy.on_order_book(context, order_book)
 
     def on_log(self, strategy, context, log, **kwargs):
         """
         On log response
         """
-        pass
+        if hasattr(strategy, 'on_log'):
+            strategy.on_log(context, log)
 
     @staticmethod
     def send_order(order, account_id=None, headers=None):
