@@ -12,14 +12,14 @@ from . enums import (
 )
 from .. const import (
     DEFAULT_USER_NAME,
-    CASH_BASE,
-    PORTFOLIO_VALUE_BASE,
+    DEFAULT_CAPITAL_BASE,
+    DEFAULT_PORTFOLIO_VALUE_BASE,
     DEFAULT_BENCHMARK
 )
-from .. trade.order import PMSOrder
-from .. trade.trade import PMSTrade
+from .. trade.order import Order
+from .. trade.trade import MetaTrade
 from .. trade.position import (
-    PMSPosition,
+    MetaPosition,
     FuturesPosition
 )
 
@@ -83,7 +83,7 @@ class PortfolioSchema(ValueObject):
                  portfolio_id=None, portfolio_name='Default portfolio',
                  portfolio_type='parent_portfolio', account_type='mix',
                  capital_base=None,
-                 portfolio_value_base=PORTFOLIO_VALUE_BASE,
+                 portfolio_value_base=DEFAULT_PORTFOLIO_VALUE_BASE,
                  position_base=None, cost_base=None,
                  sub_portfolio_ids=None, parent_portfolio_id=None,
                  delete_flag=False, benchmark=DEFAULT_BENCHMARK,
@@ -93,7 +93,7 @@ class PortfolioSchema(ValueObject):
         self.portfolio_name = portfolio_name
         self.portfolio_type = portfolio_type
         self.account_type = account_type
-        self.capital_base = capital_base if capital_base is not None else CASH_BASE
+        self.capital_base = capital_base if capital_base is not None else DEFAULT_CAPITAL_BASE
         self.position_base = position_base or dict()
         self.cost_base = cost_base or dict()
         self.portfolio_value_base = \
@@ -190,7 +190,7 @@ class PositionSchema(ValueObject):
         portfolio_id = item['portfolio_id']
         date = item['date']
         cash = item['cash']
-        position_object = PMSPosition if securities_type == SecuritiesType.SECURITY else FuturesPosition
+        position_object = MetaPosition if securities_type == SecuritiesType.SECURITY else FuturesPosition
         positions = {position['symbol']: position_object.from_query(position) for position in item['positions']}
         pre_portfolio_value = item['pre_portfolio_value']
         portfolio_value = item['portfolio_value']
@@ -255,7 +255,7 @@ class OrderSchema(ValueObject):
         Args:
             portfolio_id(string): portfolio id
             date(str): date
-            orders(dict of PMSOrder): orders
+            orders(dict of Order): orders
         """
         self.portfolio_id = portfolio_id
         self.date = date
@@ -276,11 +276,11 @@ class OrderSchema(ValueObject):
             for order in item['orders']:
                 order_id = order['order_id']
                 order['portfolio_id'] = portfolio_id
-                orders[order_id] = PMSOrder.from_query(order)
+                orders[order_id] = Order.from_query(order)
         else:
             for order_id, order in item['orders'].iteritems():
                 order['portfolio_id'] = portfolio_id
-                orders[order_id] = PMSOrder.from_query(order)
+                orders[order_id] = Order.from_query(order)
         return cls(portfolio_id=portfolio_id, date=date, orders=orders)
 
     def to_redis_item(self):
@@ -336,7 +336,7 @@ class TradeSchema(ValueObject):
         """
         portfolio_id = item['portfolio_id']
         date = item['date']
-        trades = [PMSTrade.from_query(trade) for trade in item['trades']]
+        trades = [MetaTrade.from_query(trade) for trade in item['trades']]
         return cls(portfolio_id=portfolio_id, date=date, trades=trades)
 
     def to_mongodb_item(self):
