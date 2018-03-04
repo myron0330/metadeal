@@ -156,8 +156,11 @@ class Errors(object):
                                                      'SimulationParameter instance.'))
     INVALID_COMMISSION = TradingException(error(500, '[TradingException] INVALID Commission instance.'))
     INVALID_ORDER_AMOUNT = TradingException(error(500, '[TradingException] INVALID order amount.'))
+    INVALID_ORDER_STATE = TradingException(error(500, '[TradingException] INVALID order state.'))
+    SWITCH_POSITION_FAILED = TradingException(error(500, '[TradingException] Switch position failed.'))
 
     INVALID_ACCOUNT_TYPE = AccountException(error(500, '[AccountException] INVALID account type.'))
+    INVALID_ACCOUNT_NAME = AccountException(error(500, '[AccountException] INVALID account name.'))
     GET_ACCOUNT_ERROR = AccountException(error(500, '[AccountException] Can not get account. '))
 
     INVALID_ASSET_SYMBOL = DataLoadException(error(500, '[DataLoadException] INVALID asset in AssetService.'))
