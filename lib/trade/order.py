@@ -15,7 +15,7 @@ def _get_date_hash(date):
 
 class OrderStateMessage(object):
     """
-    枚举类：订单状态信息
+    Enums: Order state message.
     """
     TO_FILL = u'待挂单'
     OPEN = u'待成交'
@@ -46,7 +46,7 @@ class OrderStateMessage(object):
 
 class OrderState(object):
     """
-    枚举类: 订单状态
+    Enums: Order state.
     """
     ORDER_SUBMITTED = 'ORDER_SUBMITTED'
     CANCEL_SUBMITTED = 'CANCEL_SUBMITTED'
@@ -60,20 +60,6 @@ class OrderState(object):
     INACTIVE = [FILLED, REJECTED, CANCELED, ERROR]
     ACTIVE = [ORDER_SUBMITTED, CANCEL_SUBMITTED, OPEN, PARTIAL_FILLED]
     ALL = [ORDER_SUBMITTED, CANCEL_SUBMITTED, OPEN, PARTIAL_FILLED, FILLED, REJECTED, CANCELED, ERROR]
-
-
-class OrderStatus(object):
-    """
-    枚举类: 订单状态
-    """
-    TO_FILL = OrderState.ORDER_SUBMITTED
-    TO_CANCEL = OrderState.CANCEL_SUBMITTED
-    FILLED = OrderState.FILLED
-    CANCELLED = OrderState.CANCELED
-    OPEN = OrderState.ACTIVE
-    CLOSED = [OrderState.CANCELED, OrderState.FILLED, OrderState.REJECTED]
-    INVALID = OrderState.ERROR
-    ALL = OrderState.ALL
 
 
 class BaseOrder(object):
@@ -141,7 +127,6 @@ class BaseOrder(object):
 
     @property
     def open_amount(self):
-        """指令的未成交数量"""
         return self._order_amount - self._filled_amount
 
     @property
@@ -210,23 +195,9 @@ class BaseOrder(object):
                        replace('}', ')').replace('null', 'None')])
 
 
-class PMSOrder(BaseOrder):
+class Order(BaseOrder):
     """
-    交易指令，包含如下属性
-
-    * self.order_id: 订单的唯一标识符
-    * self.order_time：指令下达时间
-    * self.symbol：指令涉及的证券代码
-    * self.direction：指令方向，正为买入，负为卖出
-    * self.order_amount：指令交易数量
-    * self.type：指令种类，如'market'表示按市价成交，'limit'表示按限价成交
-    * self.filled_time：指令成交时间
-    * self.filled_amount：指令成交数量
-    * self.slippage: 指令成交滑点
-    * self.commission: 指令成交手续费
-    * self.transact_price：指令成交价格（包含滑点）
-    * self.price: 指令限价
-    * self.state: 指令状态，见OrderStatus
+    Order instance.
     """
     __cur_date__, __max_order_id__ = None, 1
 
@@ -264,19 +235,8 @@ class PMSOrder(BaseOrder):
     def __init__(self, symbol, amount, order_time=None, order_type='market', price=0.,
                  portfolio_id=None, order_id=None, offset_flag=None, direction=None,
                  **kwargs):
-        """
-        股票订单初始化
-
-        Args:
-            symbol (str): 证券合约代码，必须包含后缀，其中上证证券为.XSHG，深证证券为.XSHE
-            amount (int): 委托数量，符号表示交易方向，正为买入，负为卖出
-            order_time (str): optional, 订单委托时间
-            order_type (str): optional, 订单委托类型，可以是'market'或'limit'
-            price (float): optional, 限价单价格委托接口
-            direction(int): direction
-        """
-        super(PMSOrder, self).__init__(symbol=symbol, order_amount=amount, order_time=order_time,
-                                       order_type=order_type, price=price)
+        super(Order, self).__init__(symbol=symbol, order_amount=amount, order_time=order_time,
+                                    order_type=order_type, price=price)
         self._order_id = order_id if order_id is not None else str(uuid1())
         self._portfolio_id = portfolio_id
         self._direction = direction if direction is not None else amount/abs(amount) if amount != 0 else 0
@@ -311,17 +271,17 @@ class PMSOrder(BaseOrder):
         Generate new order from request
 
         Args:
-            request(dict): request data
+            request(dict): request database
         """
         return cls(**request)
 
     @classmethod
     def from_query(cls, query_data):
         """
-        Recover existed order from query data
+        Recover existed order from query database
 
         Args:
-            query_data(dict): query data
+            query_data(dict): query database
         """
         query_data['amount'] = query_data.pop('order_amount')
         order = cls(**query_data)
@@ -335,48 +295,6 @@ class PMSOrder(BaseOrder):
         order._transact_price = query_data['transact_price']
         order._direction = query_data.get('direction', 1)
         return order
-
-    # def to_redis_item(self):
-    #     """
-    #     To redis item
-    #     """
-    #     return self.__dict__
-    #
-    # def to_mongodb_item(self):
-    #     """
-    #     To mongodb item
-    #     """
-    #     return (
-    #         {
-    #             'portfolio_id': self._portfolio_id,
-    #             'date': _get_date_hash(self._order_time)
-    #         },
-    #         {
-    #             '$set':
-    #                 {
-    #                     '%s.%s' % ('orders', self._order_id):
-    #                         {
-    #                             'portfolio_id': self._portfolio_id,
-    #                             'order_id': self._order_id,
-    #                             'symbol': self._symbol,
-    #                             'order_amount': self._order_amount,
-    #                             'filled_amount': self._filled_amount,
-    #                             'order_time': self._order_time,
-    #                             'filled_time': self._filled_time,
-    #                             'order_type': self._order_type,
-    #                             'price': self._price,
-    #                             'transact_price': self._transact_price,
-    #                             'turnover_value': self._turnover_value,
-    #                             'commission': self._commission,
-    #                             'slippage': self._slippage,
-    #                             'direction': self._direction,
-    #                             'offset_flag': self._offset_flag,
-    #                             'state': self._state,
-    #                             'state_message': self._state_message
-    #                         }
-    #                 }
-    #         }
-    #     )
 
     @property
     def __dict__(self):

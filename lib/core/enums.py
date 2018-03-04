@@ -18,7 +18,7 @@ class SecuritiesType(object):
     """
     Securities type
     """
-    SECURITY = 'security'
-    FUTURES = 'futures'
+    futures = 'futures'
+    digital_currency = 'digital_currency'
 
-    ALL = [SECURITY, FUTURES]
+    ALL = [futures, digital_currency]

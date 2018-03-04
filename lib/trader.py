@@ -47,7 +47,7 @@ futures_post_slots = _parse_slots(futures_post_trading_task_time)
 @cron(futures_pre_slots[1], futures_pre_slots[0], -1, -1, -1)
 def pre_trading_task():
     """
-    Pre trading day task: including prepare history data, reload schema.
+    Pre trading day task: including prepare history database, reload schema.
     """
     pass
 
@@ -55,7 +55,7 @@ def pre_trading_task():
 @cron(futures_pre_slots[1], futures_pre_slots[0], -1, -1, -1)
 def post_trading_task():
     """
-    Post trading day task: including prepare history data, reload schema.
+    Post trading day task: including prepare history database, reload schema.
     """
     pass
 
@@ -73,7 +73,7 @@ def feedback_worker():
 @thread
 def database_worker():
     """
-    Database worker: synchronize valid data from redis to mongodb
+    Database worker: synchronize valid database from redis to mongodb
     """
     while database_worker_enable:
         pass

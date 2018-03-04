@@ -19,8 +19,8 @@ from ... utils.dict_utils import DefaultDict, CompositeDict
 from ... utils.linked_list_utils import LinkedList, Node
 from ... utils.error_utils import Errors
 from ... utils.decorator_utils import mutex_lock, scramble_redis_lock
-from ... data.database_api import load_adjust_close_price, get_current_st_securities
-from ... data.redis_base import redis_queue, RedisCollection
+from ... database.database_api import load_adjust_close_price, get_current_st_securities
+from ... database.redis_base import redis_queue, RedisCollection
 
 
 class SecurityBroker(object):
@@ -96,7 +96,7 @@ class SecurityBroker(object):
     @mutex_lock
     def transact_minute(self, bar_data):
         """
-        Transact for orders by minute bar data
+        Transact for orders by minute bar database
         """
         linked_list = self.pool[bar_data.security_id]
         if not linked_list.get_length():
@@ -163,12 +163,12 @@ class SecurityBroker(object):
     @staticmethod
     def playback_daily(order_schema, position_schema, daily_data):
         """
-        Transact daily data
+        Transact daily database
 
         Args:
             order_schema(obj): order schema
             position_schema(obj): position schema
-            daily_data(dict): daily data
+            daily_data(dict): daily database
 
         Returns:
             (obj, obj): order, position
@@ -178,11 +178,11 @@ class SecurityBroker(object):
 
 def _transact_security_bar(node, bar_data, volume_ceiling, pre_close_price, nodes_positions):
     """
-    Transact using bar data
+    Transact using bar database
 
     Args:
         node(node): node
-        bar_data(data): bar data
+        bar_data(database): bar database
     """
     order = copy(node.obj)
     portfolio = nodes_positions.get(order.portfolio_id)
@@ -286,12 +286,12 @@ def _transact_security_bar(node, bar_data, volume_ceiling, pre_close_price, node
 
 def _playback_security_daily(order_schema, position_schema, daily_data):
     """
-    Transact securities by daily data
+    Transact securities by daily database
 
     Args:
         order_schema(obj): order schema
         position_schema(obj): position schema
-        daily_data(dict): daily data
+        daily_data(dict): daily database
 
     Returns:
         (obj, obj): order, position

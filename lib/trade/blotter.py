@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from order import PMSOrder, OrderState
+from order import Order, OrderState
 
 
 class Blotter(object):
@@ -34,7 +34,7 @@ class Blotter(object):
 
     def limit_current_blotter(self, size):
         for _order in self._current_blotter[size:]:
-            if isinstance(_order, PMSOrder):
+            if isinstance(_order, Order):
                 order_id = _order.order_id
                 self._order_state_table[self._blotter_dict[order_id].state].remove(order_id)
                 del self._blotter_dict[order_id]

@@ -271,7 +271,7 @@ class BasicMonitor(QtGui.QTableWidget):
     #----------------------------------------------------------------------
     def updateEvent(self, event):
         """收到事件更新"""
-        data = event.dict_['data']
+        data = event.dict_['database']
         self.updateData(data)
     
     #----------------------------------------------------------------------
@@ -944,7 +944,7 @@ class TradingWidget(QtGui.QFrame):
     #----------------------------------------------------------------------
     def updateTick(self, event):
         """更新行情"""
-        tick = event.dict_['data']
+        tick = event.dict_['database']
 
         if tick.vtSymbol == self.symbol:
             self.labelBidPrice1.setText(str(tick.bidPrice1))

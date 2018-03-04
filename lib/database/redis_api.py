@@ -30,14 +30,14 @@ def redis_unlock(name, timeout=None):
 
 def _query_from_(collection, schema_id=None):
     """
-    Query collection data from database
+    Query collection database from database
 
     Args:
         collection(collection): mongodb collection
         schema_id(string or list of string): optional, portfolio_id
 
     Returns:
-        dict: collection data
+        dict: collection database
     """
     if schema_id is None:
         response = redis_client.hgetall(collection)
@@ -57,13 +57,13 @@ def _query_from_(collection, schema_id=None):
 
 def _query_from_queue_(collection):
     """
-    Query collection data from redis queue
+    Query collection database from redis queue
 
     Args:
         collection(collection): mongodb collection
 
     Returns:
-        dict: collection data
+        dict: collection database
     """
     items = redis_queue.get_all(key=collection)
     return items
@@ -71,13 +71,13 @@ def _query_from_queue_(collection):
 
 def _dump_to_(collection, mapping):
     """
-    Query collection data from database
+    Query collection database from database
 
     Args:
         collection(collection): mongodb collection
-        mapping(dict): data, composite dict
+        mapping(dict): database, composite dict
     Returns:
-        list: collection data
+        list: collection database
     """
     for key, value in mapping.iteritems():
         mapping[key] = json.dumps(value)
@@ -87,7 +87,7 @@ def _dump_to_(collection, mapping):
 
 def query_from_redis(schema_type, schema_id=None):
     """
-    Query data from redis
+    Query database from redis
 
     Args:
         schema_type(string): schema type
@@ -95,7 +95,7 @@ def query_from_redis(schema_type, schema_id=None):
     """
     collection = switch_collection('redis', schema_type)
     query_data = _query_from_(collection, schema_id)
-    # todo. deal with query data.
+    # todo. deal with query database.
     return query_data
 
 

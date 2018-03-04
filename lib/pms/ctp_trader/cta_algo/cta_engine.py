@@ -239,7 +239,7 @@ class CtaEngine(object):
     #----------------------------------------------------------------------
     def processTickEvent(self, event):
         """处理行情推送"""
-        tick = event.dict_['data']
+        tick = event.dict_['database']
         # 收到tick行情后，先处理本地停止单（检查是否要立即发出）
         self.processStopOrder(tick)
         
@@ -262,7 +262,7 @@ class CtaEngine(object):
     #----------------------------------------------------------------------
     def processOrderEvent(self, event):
         """处理委托推送"""
-        order = event.dict_['data']
+        order = event.dict_['database']
         
         if order.vtOrderID in self.order_manager_collections:
             strategy = self.order_manager_collections[order.vtOrderID]
@@ -271,7 +271,7 @@ class CtaEngine(object):
     #----------------------------------------------------------------------
     def processTradeEvent(self, event):
         """处理成交推送"""
-        trade = event.dict_['data']
+        trade = event.dict_['database']
         
         if trade.vtOrderID in self.order_manager_collections:
             strategy = self.order_manager_collections[trade.vtOrderID]
@@ -296,7 +296,7 @@ class CtaEngine(object):
     #----------------------------------------------------------------------
     def processPositionEvent(self, event):
         """处理持仓推送"""
-        pos = event.dict_['data']
+        pos = event.dict_['database']
         
         # 更新持仓缓存数据
         if pos.vtSymbol in self.tick_manager_collections:
@@ -360,7 +360,7 @@ class CtaEngine(object):
         log = VtLogData()
         log.logContent = content
         event = Event(type_=EVENT_CTA_LOG)
-        event.dict_['data'] = log
+        event.dict_['database'] = log
         self._event_engine.put(event)
     
     #----------------------------------------------------------------------

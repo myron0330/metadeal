@@ -102,7 +102,7 @@ class RiskManagerEngine(object):
     #----------------------------------------------------------------------
     def updateTrade(self, event):
         """更新成交数据"""
-        trade = event.dict_['data']
+        trade = event.dict_['database']
         self.tradeCount += trade.volume
     
     #----------------------------------------------------------------------
@@ -129,7 +129,7 @@ class RiskManagerEngine(object):
         log.logContent = content
         log.gatewayName = self.name
         event = Event(type_=EVENT_LOG)
-        event.dict_['data'] = log
+        event.dict_['database'] = log
         self.eventEngine.put(event)      
     
     #----------------------------------------------------------------------
