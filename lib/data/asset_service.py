@@ -104,19 +104,6 @@ def _get_date(date_str, date_pattern='%Y-%m-%d'):
         return datetime.datetime.strptime(date_str, date_pattern)
 
 
-def _get_future_code(symbol):
-    """
-    Get future code.
-
-    Args:
-        symbol(string): future symbol
-    """
-    if len(symbol) <= 2:
-        return symbol
-    symbol_object = symbol[:-2] if len(symbol) <= 4 else ''.join(re.findall(r'[A-Z]', symbol))
-    return symbol_object
-
-
 def _normalize_zce_symbol_by_date(symbol, target_date):
     """
     Normalize zce symbol according to a target date.
@@ -150,6 +137,19 @@ def _normalize_zce_symbol_by_period(symbol, start, end):
         return [symbol]
 
 
+def get_future_code(symbol):
+    """
+    Get future code.
+
+    Args:
+        symbol(string): future symbol
+    """
+    if len(symbol) <= 2:
+        return symbol
+    symbol_object = symbol[:-2] if len(symbol) <= 4 else ''.join(re.findall(r'[A-Z]', symbol))
+    return symbol_object
+
+
 class FuturesAssetInfo(AssetInfo):
     """
     Futures asset info.
@@ -159,7 +159,7 @@ class FuturesAssetInfo(AssetInfo):
                  price_valid_decimal=None, commission=None, commission_unit=None, margin_rate=None,
                  code=None, asset_type=AssetType.BASE_FUTURES):
         super(FuturesAssetInfo, self).__init__(sec_id, symbol, exchange, name, asset_type, list_date, last_date)
-        self.code = _get_future_code(symbol) if not code else code
+        self.code = get_future_code(symbol) if not code else code
         self.last_trade_date = last_date
         self.multiplier = multiplier
         self.multiplier_unit = multiplier_unit
@@ -435,7 +435,7 @@ class AssetService(ServiceInterface):
             list: all future asset list
         """
         result = list()
-        codes = list(set([_get_future_code(cid) for cid in continuous_future_assets]))
+        codes = list(set([get_future_code(cid) for cid in continuous_future_assets]))
         codes_info = MktFutureInfoByContractObjects(codes)
         code_artificial_info = get_futures_artificial_info(codes,
                                                            start_date.strftime('%Y%m%d'),
@@ -640,7 +640,7 @@ class AssetService(ServiceInterface):
         if isinstance(symbols, basestring): symbols = symbols.split(',')
         if not symbols:
             return []
-        objects = map(_get_future_code, symbols)
+        objects = map(get_future_code, symbols)
         return list(set(objects))
 
     def get_asset(self, symbol, date=None):
