@@ -23,11 +23,7 @@ valid_functions = [
 
 class TradingStrategy(object):
     """
-    交易策略，包含如下属性
-
-    * self.initialize：交易策略-虚拟账户初始函数
-    * self.handle_data：交易策略-每日交易指令判断函数
-    * self.post_trading_day：交易策略-每日盘后用户自定义操作函数
+    Trading strategy class.
     """
 
     def __init__(self, initialize=blank_func, handle_data=blank_func, **other_functions):
