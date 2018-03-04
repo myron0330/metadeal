@@ -4,13 +4,11 @@
 #   Author: Myron
 # **********************************************************************************#
 from copy import copy
+from utils.error_utils import Errors
 from . import (
-    StockAccount,
-    FuturesAccount,
-    OTCFundAccount,
-    IndexAccount
+    FuturesAccount
 )
-from .. core.enums import AccountType
+from .. core.enums import SecuritiesType
 from .. data import (
     AssetType,
     get_future_code
@@ -18,14 +16,6 @@ from .. data import (
 from .. trade import (
     Commission,
     Slippage,
-    StockPortfolio,
-    Position
-)
-from .. utils.error_utils import (
-    BacktestError,
-    AccountError,
-    AccountMessage,
-    Errors
 )
 from .. const import DEFAULT_ACCOUNT_NAME
 
@@ -75,10 +65,7 @@ class AccountConfig(object):
 class AccountManager(object):
 
     ACCOUNT_TYPE_MAPPING = {
-        'security': StockAccount,
         'futures': FuturesAccount,
-        'otc_fund': OTCFundAccount,
-        'index': IndexAccount
     }
 
     def __init__(self, accounts=None):
@@ -103,9 +90,13 @@ class AccountManager(object):
         accounts = accounts or sim_params.accounts
         if not accounts:
             accounts = {DEFAULT_ACCOUNT_NAME: AccountConfig(
-                AccountType.security, capital_base=sim_params.capital_base, commission=sim_params.commission,
-                slippage=sim_params.slippage, margin_rate=sim_params.margin_rate,
-                position_base=sim_params.position_base, cost_base=sim_params.cost_base)}
+                SecuritiesType.futures, 
+                capital_base=sim_params.capital_base,
+                commission=sim_params.commission,
+                slippage=sim_params.slippage,
+                margin_rate=sim_params.margin_rate,
+                position_base=sim_params.position_base,
+                cost_base=sim_params.cost_base)}
         account_manager = cls(accounts)
         account_manager.register_accounts(clock, sim_params, data_portal)
         return account_manager
@@ -139,7 +130,7 @@ class AccountManager(object):
         if DEFAULT_ACCOUNT_NAME in self._registered_accounts:
             return self._registered_accounts[DEFAULT_ACCOUNT_NAME]
         else:
-            accounts = self.filter_accounts(AccountType.security).values()
+            accounts = self.filter_accounts(SecuritiesType.futures).values()
             return accounts[0] if len(accounts) > 0 else None
 
     def register_accounts(self, clock, sim_params, data_portal, accounts=None):
@@ -175,19 +166,9 @@ class AccountManager(object):
             current_sim_params.position_base = config.position_base
             current_sim_params.cost_base = config.cost_base
             current_sim_params.portfolio = self.initiate_portfolio(config, current_sim_params)
-            if config.account_type == AccountType.security:
-                self._registered_accounts[account] = \
-                    StockAccount.from_config(clock, current_sim_params, data_portal)
-            elif config.account_type == AccountType.futures:
+            if config.account_type == SecuritiesType.futures:
                 self._registered_accounts[account] = \
                     FuturesAccount.from_config(clock, current_sim_params, data_portal)
-            elif config.account_type == AccountType.otc_fund:
-                current_sim_params.dividends_method = config.dividend_method
-                self._registered_accounts[account] = \
-                    OTCFundAccount.from_config(clock, current_sim_params, data_portal)
-            elif config.account_type == AccountType.index:
-                self._registered_accounts[account] = \
-                    IndexAccount.from_config(clock, current_sim_params, data_portal)
             else:
                 raise Errors.INVALID_ACCOUNT_TYPE
 
@@ -196,54 +177,6 @@ class AccountManager(object):
             config.slippage = current_sim_params.slippage
             config.margin_rate = current_sim_params.margin_rate
             self._registered_accounts_params[account] = current_sim_params
-
-    # def register_accounts_deprecate(self, context, sim_params, accounts=None):
-    #     """
-    #     Register accounts
-    #
-    #     Args:
-    #         context(context): context
-    #         sim_params(sim_params): simulation parameters
-    #         accounts(dict): registered accounts
-    #     """
-    #     # todo. need to deprecate.
-    #     accounts = accounts if accounts else self._accounts
-    #     for account_name, account in accounts.iteritems():
-    #         current_sim_params = copy(sim_params)
-    #         custom_capital_base = current_sim_params.capital_base_by_accounts.get(account_name)
-    #         if custom_capital_base:
-    #             account.capital_base = custom_capital_base
-    #         current_sim_params.capital_base = self.initiate_capital_base(account, current_sim_params)
-    #         current_sim_params.cash = current_sim_params.capital_base
-    #         current_sim_params.commission = self.initiate_commission(account)
-    #         current_sim_params.slippage = self.initiate_slippage(account)
-    #         current_sim_params.margin_rate = account.margin_rate
-    #         if account.position_base:
-    #             current_sim_params.security_base = account.position_base
-    #         if account.cost_base:
-    #             current_sim_params.security_cost = account.cost_base
-    #         custom_position_base = current_sim_params.position_base_by_accounts.get(account_name)
-    #         custom_cost_base = current_sim_params.cost_base_by_accounts.get(account_name)
-    #         if custom_position_base:
-    #             account.position_base.update(custom_position_base)
-    #         if custom_cost_base:
-    #             account.cost_base.update(custom_cost_base)
-    #         current_sim_params.portfolio = self.initiate_portfolio(account, current_sim_params)
-    #         if account.account_type == 'security':
-    #             self._registered_accounts[account_name] = StockAccount.from_environment(current_sim_params, context)
-    #         elif account.account_type == 'futures':
-    #             self._registered_accounts[account_name] = FuturesAccount.from_environment(current_sim_params, context)
-    #         elif account.account_type == 'otc_fund':
-    #             current_sim_params.dividends_method = account.dividend_method
-    #             self._registered_accounts[account_name] = OTCFundAccount.from_environment(current_sim_params, context)
-    #         elif account.account_type == 'index':
-    #             self._registered_accounts[account_name] = IndexAccount.from_environment(current_sim_params, context)
-    #         else:
-    #             # raise AccountError('Exception in "{}": {}'.format(
-    #             #     'AccountManager.register_account', 'Invalid account {}'.format(account.account_type)))
-    #             msg = AccountMessage.ACCOUNT_TYPE_ERROR.format(account.account_type)
-    #             raise AccountError(msg)
-    #         self._registered_accounts_params[account_name] = current_sim_params
 
     def filter_accounts(self, account_type):
         """
@@ -271,9 +204,7 @@ class AccountManager(object):
         if account_name in self.registered_accounts:
             return self.registered_accounts[account_name]
         else:
-            # raise AccountError('account {} has not been registered! '.format(account_name))
-            msg = AccountMessage.NOT_REGISTERED.format(account_name)
-            raise AccountError(msg)
+            raise Errors.INVALID_ACCOUNT_NAME
 
     @staticmethod
     def initiate_commission(account_config, data_portal):
@@ -284,7 +215,7 @@ class AccountManager(object):
             account_config(AccountConfig): account config
             data_portal(obj): DataPortal
         """
-        if account_config.account_type == AccountType.futures:
+        if account_config.account_type == SecuritiesType.futures:
 
             def _normalize_commission(commission, full_universe):
                 """
@@ -309,7 +240,7 @@ class AccountManager(object):
                                 commission[symbol][0], commission[symbol][1], commission[symbol][2])
                                 for symbol in commission.iterkeys()}
                         else:
-                            raise BacktestError('Invalid commission type!')
+                            raise Errors.INVALID_COMMISSION
                 else:
                     normalized_commission = {get_future_code(symbol): commission for symbol in full_universe}
                 return normalized_commission
@@ -340,7 +271,7 @@ class AccountManager(object):
             data_portal(obj): DataPortal
         """
 
-        if account_config.account_type == AccountType.futures:
+        if account_config.account_type == SecuritiesType.futures:
 
             def _normalize_margin_rate(margin_rate, full_universe):
                 """
@@ -372,24 +303,14 @@ class AccountManager(object):
             account_config(AccountConfig): account config
             sim_params(SimulationParameters): simulation parameters
         """
-        if account_config.account_type == 'security':
-            return StockPortfolio(float(sim_params.capital_base), Position.from_dict(
-                account_config.position_base,
-                account_config.cost_base))
-        elif account_config.account_type == 'futures':
+        assert sim_params, Errors.INVALID_SIM_PARAMS
+        if account_config.account_type == 'futures':
             return {
                 'position_base': account_config.position_base,
                 'cost_base': account_config.cost_base
             }
-        elif account_config.account_type == 'otc_fund':
-            return None
-        elif account_config.account_type == 'index':
-            return None
         else:
-            # raise AccountError('Exception in "{}": {}'.format(
-            #     'AccountManager.init_portfolio', 'Invalid account {}'.format(current_account.account_type)))
-            msg = AccountMessage.ACCOUNT_TYPE_ERROR.format(account_config.account_type)
-            raise AccountError(msg)
+            raise Errors.INVALID_ACCOUNT_TYPE
 
     @staticmethod
     def initiate_capital_base(account_config, sim_param):
