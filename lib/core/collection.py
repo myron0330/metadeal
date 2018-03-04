@@ -61,7 +61,6 @@ def switch_collection(database, schema_type):
 
 __all__ = [
     'MongodbCollections',
-    'MongodbBatchTools',
     'RedisCollections',
     'switch_collection'
 ]
