@@ -88,12 +88,12 @@ class TradingEngine(object):
             item = json.loads(tick['data'])
             item.update({'channel': tick['channel']})
             tick_data = TickData.from_quote(item)
-            kwargs = {
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
                 'tick': tick_data
             }
-            self.trading_gateway.publish(EventType.event_on_tick, **kwargs)
+            self.trading_gateway.publish(EventType.event_on_tick, **parameters)
 
     def _order_book_engine(self, market_type):
         """
@@ -103,12 +103,12 @@ class TradingEngine(object):
             item = json.loads(order_book['data'])
             item.update({'channel': order_book['channel']})
             order_book = OrderBookData.from_quote(item)
-            kwargs = {
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
                 'order_book': order_book
             }
-            self.trading_gateway.publish(EventType.event_order_book, **kwargs)
+            self.trading_gateway.publish(EventType.event_order_book, **parameters)
 
     def _handle_data_engine(self, slots=0.5):
         """
@@ -116,11 +116,11 @@ class TradingEngine(object):
         """
         while True:
             time.sleep(slots)
-            kwargs = {
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context
             }
-            self.trading_gateway.publish(EventType.event_handle_data, **kwargs)
+            self.trading_gateway.publish(EventType.event_handle_data, **parameters)
 
     def _response_engine(self):
         """
