@@ -12,31 +12,8 @@ class BaseGateway(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, event_engine):
-        self.event_engine = event_engine
-        self.gateway_name = 'Base_Gateway'
-
-    def start(self):
-        """
-        Start
-        """
-        self.event_engine.start()
-
-    def stop(self):
-        """
-        Stop
-        """
-        self.event_engine.stop()
-
-    def publish(self, event_type, **kwargs):
-        """
-        Publish event
-        Args:
-            event_type(string): event type
-            **kwargs: key-value parameters
-        """
-        event = Event(event_type=event_type, **kwargs)
-        self.event_engine.put_event(event)
+    def __init__(self, gateway_name='Base_Gateway'):
+        self.gateway_name = gateway_name
 
     def on_tick(self, *args, **kwargs):
         """
