@@ -17,7 +17,9 @@ class TradingEngine(object):
                  strategy, data_portal,
                  context, account_manager,
                  market_engine=None,
-                 trading_gateway=None):
+                 trading_gateway=None,
+                 event_engine=None,
+                 pms_lite=None):
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
         self.sim_params = sim_params
@@ -27,16 +29,32 @@ class TradingEngine(object):
         self.account_manager = account_manager
         self.market_engine = market_engine
         self.trading_gateway = trading_gateway
+        self.event_engine = event_engine
+        self.pms_lite = pms_lite
         self._thread_pool = dict()
 
     def initialize(self):
         """
         Prepare initialize.
         """
+        self._register_handlers(with_trading_gateway=True,
+                                with_pms_lite=False)
         self._load_thread_pool(with_tick_channel=True,
                                with_order_book_channel=False,
                                with_response_channel=True,
                                with_clock_channel=True)
+
+    def _register_handlers(self,
+                           with_trading_gateway=True,
+                           with_pms_lite=True):
+        """
+        Register handlers.
+        """
+        for event in EventType.registered_events():
+            if with_trading_gateway:
+                self.event_engine.register_handlers(event, getattr(self.trading_gateway, event))
+            if with_pms_lite:
+                self.event_engine.register_handlers(event, getattr(self.pms_lite, event))
 
     def _load_thread_pool(self,
                           with_tick_channel=True,
@@ -68,7 +86,7 @@ class TradingEngine(object):
         """
         LiveTradingAgent worker start.
         """
-        self.trading_gateway.start()
+        self.event_engine.start()
         for _, thread in self._thread_pool.iteritems():
             thread.start()
 
@@ -76,7 +94,7 @@ class TradingEngine(object):
         """
         LiveTradingAgent worker stop.
         """
-        self.trading_gateway.stop()
+        self.event_engine.stop()
         for _, thread in self._thread_pool.iteritems():
             thread.join()
 
@@ -93,7 +111,7 @@ class TradingEngine(object):
                 'context': self.context,
                 'tick': tick_data
             }
-            self.trading_gateway.publish(EventType.event_on_tick, **parameters)
+            self.event_engine.publish(EventType.event_on_tick, **parameters)
 
     def _order_book_engine(self, market_type):
         """
@@ -108,7 +126,7 @@ class TradingEngine(object):
                 'context': self.context,
                 'order_book': order_book
             }
-            self.trading_gateway.publish(EventType.event_order_book, **parameters)
+            self.event_engine.publish(EventType.event_order_book, **parameters)
 
     def _handle_data_engine(self, slots=0.5):
         """
@@ -120,7 +138,7 @@ class TradingEngine(object):
                 'strategy': self.strategy,
                 'context': self.context
             }
-            self.trading_gateway.publish(EventType.event_handle_data, **parameters)
+            self.event_engine.publish(EventType.event_handle_data, **parameters)
 
     def _response_engine(self):
         """
