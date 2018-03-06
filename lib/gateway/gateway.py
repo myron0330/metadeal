@@ -2,29 +2,20 @@
 # **********************************************************************************#
 #     File: XDAEX exchange gateway.
 # **********************************************************************************#
+import requests
+import traceback
 from configs import *
 from . base_gateway import BaseGateway
-from .. event.event_engine import EventType, EventEngine
+from .. utils.decorator_utils import mutex_lock
 
 
 class Gateway(BaseGateway):
 
-    def __init__(self, event_engine):
+    def __init__(self, gateway_name='Gateway'):
         super(Gateway, self).__init__(self)
-        self.event_engine = event_engine
-        self.gateway_name = 'Gateway'
+        self.gateway_name = gateway_name
 
-    @classmethod
-    def with_event_engine(cls):
-        """
-        Generate gateway with event engine initialization.
-        """
-        event_engine = EventEngine()
-        instance = cls(event_engine)
-        for event in EventType.registered_events():
-            event_engine.register_handlers(event, getattr(instance, event))
-        return instance
-
+    @mutex_lock
     def on_tick(self, strategy, context, tick, **kwargs):
         """
         On tick response
@@ -32,6 +23,7 @@ class Gateway(BaseGateway):
         if hasattr(strategy, 'on_tick'):
             strategy.on_tick(context, tick)
 
+    @mutex_lock
     def on_order(self, strategy, context, order, **kwargs):
         """
         On order response
@@ -39,6 +31,7 @@ class Gateway(BaseGateway):
         if hasattr(strategy, 'on_order'):
             strategy.on_order(context, order)
 
+    @mutex_lock
     def on_trade(self, strategy, context, trade, **kwargs):
         """
         On tick response
@@ -46,6 +39,7 @@ class Gateway(BaseGateway):
         if hasattr(strategy, 'on_trade'):
             strategy.on_trade(context, trade)
 
+    @mutex_lock
     def on_order_book(self, strategy, context, order_book, **kwargs):
         """
         On order book response
@@ -53,6 +47,7 @@ class Gateway(BaseGateway):
         if hasattr(strategy, 'on_order_book'):
             strategy.on_order_book(context, order_book)
 
+    @mutex_lock
     def handle_data(self, strategy, context, **kwargs):
         """
         Handle data response
@@ -68,24 +63,49 @@ class Gateway(BaseGateway):
             strategy.on_log(context, log)
 
     @staticmethod
-    def send_order(order, account_id=None, headers=None):
+    def send_order(order, account_id=None):
         """
         Send order.
 
         Args:
             order(obj): order object
             account_id(string): account id
-            headers(obj): http headers
         """
+        create_order_url = '/'.join([order_url, 'create'])
+        request_order = order.to_request()
+        request_order['accountId'] = account_id
         logger.info('[Send order] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+        try:
+            response = requests.post(create_order_url, json=request_order).json()
+        except IOError:
+            logger.info('[Send order] [IOError] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+            logger.info(traceback.format_exc())
+        except:
+            logger.info('[Send order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+            logger.info(traceback.format_exc())
+        else:
+            logger.info('[Send order] [Response]: {}'.format(response))
 
     @staticmethod
-    def cancel_order(order_id, account_id=None, headers=None):
+    def cancel_order(order_id, account_id=None):
         """
         Send cancel order.
         Args:
             order_id(string): order id
             account_id(string): account id
-            headers(obj): http headers
         """
+        cancel_order_url = '/'.join([order_url, 'cancel'])
+        request_data = {
+            'extOrdId': order_id,
+            'accountId': account_id,
+        }
         logger.info('[Cancel order] account_id: {}, order_id: {}'.format(account_id, order_id))
+        try:
+            response = requests.post(cancel_order_url, json=request_data)
+        except IOError:
+            logger.info('[Cancel order] [IOError] account_id: {}, order_id: {}'.format(account_id, order_id))
+        except:
+            logger.info('[Cancel order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order_id))
+            logger.info(traceback.format_exc())
+        else:
+            logger.info('[Cancel order] [Response]: {}'.format(response))
