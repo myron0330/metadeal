@@ -2,16 +2,17 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
+from . core.clock import Clock
 from . trading_engine import TradingEngine
 from . account.account import AccountManager
-from . context.clock import Clock
 from . context.context import Context
 from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
 from . data.data_portal import DataPortal
+from . event.event_engine import EventEngine
 from . gateway.gateway import Gateway
 from . market.market_engine import MarketEngine
-from . const import DEFAULT_KEYWORDS
+from . const import PRESET_KEYARGS
 
 
 def _parse_prior_params(bt_config, code_config, default_config, key, prior='pre'):
@@ -42,19 +43,19 @@ def _parse_sim_params(config, local_variables):
         config(dict): config parameters
         local_variables(dict): parser parameters
     """
-    start = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'start')
-    end = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'end')
-    benchmark = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'benchmark')
-    universe = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'universe')
-    capital_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'capital_base')
-    position_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'position_base')
-    cost_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'cost_base')
-    commission = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'commission')
-    slippage = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'slippage')
-    refresh_rate = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'refresh_rate')
-    freq = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'freq')
-    max_history_window = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'max_history_window')
-    accounts = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'accounts')
+    start = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'start')
+    end = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'end')
+    benchmark = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'benchmark')
+    universe = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'universe')
+    capital_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'capital_base')
+    position_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'position_base')
+    cost_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'cost_base')
+    commission = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'commission')
+    slippage = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'slippage')
+    refresh_rate = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'refresh_rate')
+    freq = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'freq')
+    max_history_window = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'max_history_window')
+    accounts = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'accounts')
     sim_params = SimulationParameters(
         start=start,
         end=end,
@@ -83,7 +84,10 @@ def _strategy_from_code(strategy_code):
     Returns:
         tuple: TradingStrategy, param dict
     """
-    from api import (Commission, Slippage, OrderState, OrderStateMessage, AccountConfig)
+    # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
+    from api import (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
+                     Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
+    # 将当前环境中的local变量注入到globals中，用于执行code策略
     exec strategy_code in locals()
     strategy = TradingStrategy(**locals())
     return strategy, locals()
@@ -104,17 +108,19 @@ def trading(strategy_code, config=None, **kwargs):
     clock = Clock(sim_params.freq)
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
-    account_manager = AccountManager.from_config(clock, sim_params, data_portal)
+    event_engine = EventEngine()
+    trading_gateway = Gateway()
+    account_manager = AccountManager.from_config(clock, sim_params, data_portal, event_engine=event_engine)
     context = Context(clock, sim_params, strategy,
                       market_service=data_portal.market_service,
                       universe_service=data_portal.universe_service,
                       asset_service=data_portal.asset_service,
                       calendar_service=data_portal.calendar_service,
                       account_manager=account_manager)
-    trading_gateway = Gateway.with_event_engine()
     trading_agent = TradingEngine(clock, sim_params, strategy,
                                   data_portal, context, account_manager,
                                   market_engine=MarketEngine,
-                                  trading_gateway=trading_gateway)
+                                  trading_gateway=trading_gateway,
+                                  event_engine=event_engine)
     trading_agent.initialize()
     trading_agent.start()
