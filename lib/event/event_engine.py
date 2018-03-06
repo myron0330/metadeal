@@ -35,6 +35,16 @@ class EventEngine(object):
         self._active = False
         self._processor.join()
 
+    def publish(self, event_type, **kwargs):
+        """
+        Publish event
+        Args:
+            event_type(string): event type
+            **kwargs: key-value parameters
+        """
+        event = Event(event_type=event_type, **kwargs)
+        self.put_event(event)
+
     def put_event(self, event):
         """
         Put event to processing queue.
