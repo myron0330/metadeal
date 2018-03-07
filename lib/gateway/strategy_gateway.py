@@ -9,10 +9,10 @@ from . base_gateway import BaseGateway
 from .. utils.decorator_utils import mutex_lock
 
 
-class Gateway(BaseGateway):
+class StrategyGateway(BaseGateway):
 
     def __init__(self, gateway_name='Gateway'):
-        super(Gateway, self).__init__(self)
+        super(StrategyGateway, self).__init__(self)
         self.gateway_name = gateway_name
 
     @mutex_lock
@@ -74,17 +74,17 @@ class Gateway(BaseGateway):
         create_order_url = '/'.join([order_url, 'create'])
         request_order = order.to_request()
         request_order['accountId'] = account_id
-        logger.info('[Send order] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+        logger.info('[Strategy Gateway] [Send order] account_id: {}, order_id: {}'.format(account_id, order.order_id))
         try:
             response = requests.post(create_order_url, json=request_order).json()
         except IOError:
-            logger.info('[Send order] [IOError] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+            logger.info('[Strategy Gateway] [Send order] [IOError] account_id: {}, order_id: {}'.format(account_id, order.order_id))
             logger.info(traceback.format_exc())
         except:
-            logger.info('[Send order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order.order_id))
+            logger.info('[Strategy Gateway] [Send order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order.order_id))
             logger.info(traceback.format_exc())
         else:
-            logger.info('[Send order] [Response]: {}'.format(response))
+            logger.info('[Strategy Gateway] [Send order] [Response]: {}'.format(response))
 
     @staticmethod
     def cancel_order(order_id, account_id=None):
@@ -99,13 +99,13 @@ class Gateway(BaseGateway):
             'extOrdId': order_id,
             'accountId': account_id,
         }
-        logger.info('[Cancel order] account_id: {}, order_id: {}'.format(account_id, order_id))
+        logger.info('[Strategy Gateway] [Cancel order] account_id: {}, order_id: {}'.format(account_id, order_id))
         try:
             response = requests.post(cancel_order_url, json=request_data)
         except IOError:
-            logger.info('[Cancel order] [IOError] account_id: {}, order_id: {}'.format(account_id, order_id))
+            logger.info('[Strategy Gateway] [Cancel order] [IOError] account_id: {}, order_id: {}'.format(account_id, order_id))
         except:
-            logger.info('[Cancel order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order_id))
+            logger.info('[Strategy Gateway] [Cancel order] [Other Error] account_id: {}, order_id: {}'.format(account_id, order_id))
             logger.info(traceback.format_exc())
         else:
-            logger.info('[Cancel order] [Response]: {}'.format(response))
+            logger.info('[Strategy Gateway] [Cancel order] [Response]: {}'.format(response))
