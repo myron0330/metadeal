@@ -2,18 +2,20 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
-from . core.clock import Clock
-from . trading_engine import TradingEngine
 from . account.account import AccountManager
-from . context.context import Context
-from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
+from . context.parameters import SimulationParameters
+from . context.context import Context
+from . core.clock import Clock
 from . data.data_portal import DataPortal
 from . event.event_engine import EventEngine
-from . gateway.strategy_gateway import StrategyGateway
-from . market.subscription_engine import SubscriptionEngine
+from . gateway import (
+    PMSGateway,
+    StrategyGateway
+)
+from . market import SubscriptionEngine
+from . trading_engine import TradingEngine
 from . const import PRESET_KEYARGS
-from . pms.pms_lite import PMSLite
 
 
 def _parse_prior_params(bt_config, code_config, default_config, key, prior='pre'):
@@ -86,9 +88,9 @@ def _strategy_from_code(strategy_code):
         tuple: TradingStrategy, param dict
     """
     # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
+    # 将当前环境中的local变量注入到globals中，用于执行code策略
     from api import (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
                      Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
-    # 将当前环境中的local变量注入到globals中，用于执行code策略
     exec strategy_code in locals()
     strategy = TradingStrategy(**locals())
     return strategy, locals()
@@ -111,7 +113,7 @@ def trading(strategy_code, config=None, **kwargs):
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
     strategy_gateway = StrategyGateway()
-    pms_lite = PMSLite.from_config(clock, sim_params, data_portal, sim_params.accounts)
+    pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal, sim_params.accounts)
     account_manager = AccountManager.from_config(clock, sim_params, data_portal, event_engine=event_engine)
     context = Context(clock, sim_params, strategy,
                       market_service=data_portal.market_service,
@@ -124,6 +126,6 @@ def trading(strategy_code, config=None, **kwargs):
                                   subscription_engine=SubscriptionEngine,
                                   strategy_gateway=strategy_gateway,
                                   event_engine=event_engine,
-                                  pms_lite=pms_lite)
+                                  pms_gateway=pms_gateway)
     trading_agent.initialize()
     trading_agent.start()
