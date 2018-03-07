@@ -12,7 +12,7 @@ from .. utils.dict_utils import (
     CompositeDict
 )
 from .. utils.error_utils import Errors
-from .. gateway.base_gateway import BaseGateway
+from .. gateway import BaseGateway
 from .. trade import OrderState, OrderStateMessage
 
 
@@ -39,7 +39,7 @@ def _get_positions_by(account_id, account_type=None, position_base=None):
     return positions
 
 
-class PMSLite(BaseGateway):
+class PMSGateway(BaseGateway):
     """
     组合管理模块
 
@@ -65,7 +65,7 @@ class PMSLite(BaseGateway):
             benchmark_info(dict): 用户对比权益曲线 |-> dict(account: string)
             total_commission_info(dict): 手续费记录　｜-> dict(account: dict(date: float))
         """
-        super(PMSLite, self).__init__(gateway_name='PMS_Lite')
+        super(PMSGateway, self).__init__(gateway_name='PMS_Lite')
         self.clock = clock
         self.accounts = accounts
         self.data_portal = data_portal
