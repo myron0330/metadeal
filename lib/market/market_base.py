@@ -52,6 +52,34 @@ class TickData(ValueObject):
         self.volume_30d = volume_30d
         self.channel = channel
 
+    def __setattr__(self, key, value):
+        """
+        Set attr.
+
+        Args:
+            key(string): key
+            value(obj): value
+        """
+        type_map = {
+            'best_ask': float,
+            'best_bid': float,
+            'high_24h': float,
+            'last_size': float,
+            'low_24h': float,
+            'open_24h': float,
+            'price': float,
+            'symbol': str,
+            'sequence': int,
+            'side': str,
+            'time': str,
+            'receive_timestamp': int,
+            'trade_id': int,
+            'volume_24h': float,
+            'volume_30d': float,
+            'channel': str,
+        }
+        object.__setattr__(self, key, type_map[key](value) if value is not None else value)
+
     @classmethod
     def from_quote(cls, item):
         """
@@ -93,7 +121,90 @@ class OrderBookData(ValueObject):
         return cls(**item)
 
 
+class TradeData(ValueObject):
+    """
+    Trade data.
+    """
+    __slots__ = [
+        'account_id',
+        'amount',
+        'cost',
+        'exchange',
+        'exchange_account_id',
+        'exchange_order_id',
+        'exchange_trade_id',
+        'fee',
+        'fee_currency',
+        'order_id',
+        'price',
+        'side',
+        'symbol',
+        'timestamp',
+    ]
+
+    def __init__(self, account_id=None, amount=None, cost=None,
+                 exchange=None, exchange_account_id=None,
+                 exchange_order_id=None, exchange_trade_id=None,
+                 fee=None, fee_currency=None, order_id=None,
+                 price=None, side=None, symbol=None, timestamp=None):
+        self.account_id = account_id
+        self.amount = amount
+        self.cost = cost
+        self.exchange = exchange
+        self.exchange_account_id = exchange_account_id
+        self.exchange_order_id = exchange_order_id
+        self.exchange_trade_id = exchange_trade_id
+        self.fee = fee
+        self.fee_currency = fee_currency
+        self.order_id = order_id
+        self.price = price
+        self.side = side
+        self.symbol = symbol
+        self.timestamp = timestamp
+
+    def __setattr__(self, key, value):
+        """
+        Set attr.
+
+        Args:
+            key(string): key
+            value(obj): value
+        """
+        type_map = {
+            'account_id': str,
+            'amount': float,
+            'cost': float,
+            'exchange': str,
+            'exchange_account_id': str,
+            'exchange_order_id': str,
+            'exchange_trade_id': str,
+            'fee': float,
+            'fee_currency': str,
+            'order_id': str,
+            'price': float,
+            'side': str,
+            'symbol': str,
+            'timestamp': int,
+        }
+        object.__setattr__(self, key, type_map[key](value) if value is not None else value)
+
+    @classmethod
+    def from_quote(cls, item):
+        """
+        Generate from exchange quote.
+        """
+        item['account_id'] = item.pop('accountId')
+        item['exchange_account_id'] = item.pop('exchangeAccountId')
+        item['exchange_order_id'] = item.pop('orderId')
+        item['exchange_trade_id'] = item.pop('tradeId')
+        item['fee_currency'] = item.pop('feeCurrency')
+        item['order_id'] = item.pop('extOrdId')
+        item.pop('clOrdId')
+        return cls(**item)
+
+
 __all__ = [
     'TickData',
-    'OrderBookData'
+    'OrderBookData',
+    'TradeData'
 ]
