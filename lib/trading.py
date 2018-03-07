@@ -10,7 +10,8 @@ from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
 from . data.data_portal import DataPortal
 from . event.event_engine import EventEngine
-from . gateway.gateway import Gateway
+from . gateway.strategy_gateway import StrategyGateway
+from . gateway.pms_lite import PMSLite
 from . market.market_engine import MarketEngine
 from . const import PRESET_KEYARGS
 
@@ -109,7 +110,8 @@ def trading(strategy_code, config=None, **kwargs):
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
-    trading_gateway = Gateway()
+    strategy_gateway = StrategyGateway()
+    pms_lite = PMSLite.from_config(clock, sim_params, data_portal, sim_params.accounts)
     account_manager = AccountManager.from_config(clock, sim_params, data_portal, event_engine=event_engine)
     context = Context(clock, sim_params, strategy,
                       market_service=data_portal.market_service,
@@ -120,7 +122,8 @@ def trading(strategy_code, config=None, **kwargs):
     trading_agent = TradingEngine(clock, sim_params, strategy,
                                   data_portal, context, account_manager,
                                   market_engine=MarketEngine,
-                                  trading_gateway=trading_gateway,
-                                  event_engine=event_engine)
+                                  strategy_gateway=strategy_gateway,
+                                  event_engine=event_engine,
+                                  pms_lite=pms_lite)
     trading_agent.initialize()
     trading_agent.start()
