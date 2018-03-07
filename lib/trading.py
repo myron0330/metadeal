@@ -11,9 +11,9 @@ from . context.strategy import TradingStrategy
 from . data.data_portal import DataPortal
 from . event.event_engine import EventEngine
 from . gateway.strategy_gateway import StrategyGateway
-from . gateway.pms_lite import PMSLite
-from . market.market_engine import MarketEngine
+from . market.subscription_engine import SubscriptionEngine
 from . const import PRESET_KEYARGS
+from . pms.pms_lite import PMSLite
 
 
 def _parse_prior_params(bt_config, code_config, default_config, key, prior='pre'):
@@ -121,7 +121,7 @@ def trading(strategy_code, config=None, **kwargs):
                       account_manager=account_manager)
     trading_agent = TradingEngine(clock, sim_params, strategy,
                                   data_portal, context, account_manager,
-                                  market_engine=MarketEngine,
+                                  subscription_engine=SubscriptionEngine,
                                   strategy_gateway=strategy_gateway,
                                   event_engine=event_engine,
                                   pms_lite=pms_lite)
