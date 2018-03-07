@@ -17,8 +17,8 @@ class TradingEngine(object):
                  strategy, data_portal,
                  context, account_manager,
                  market_engine=None,
-                 trading_gateway=None,
                  event_engine=None,
+                 strategy_gateway=None,
                  pms_lite=None):
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
@@ -28,8 +28,8 @@ class TradingEngine(object):
         self.context = context
         self.account_manager = account_manager
         self.market_engine = market_engine
-        self.trading_gateway = trading_gateway
         self.event_engine = event_engine
+        self.strategy_gateway = strategy_gateway
         self.pms_lite = pms_lite
         self._thread_pool = dict()
 
@@ -38,7 +38,7 @@ class TradingEngine(object):
         Prepare initialize.
         """
         self._register_handlers(with_trading_gateway=True,
-                                with_pms_lite=False)
+                                with_pms_lite=True)
         self._load_thread_pool(with_tick_channel=True,
                                with_order_book_channel=False,
                                with_response_channel=True,
@@ -51,10 +51,11 @@ class TradingEngine(object):
         Register handlers.
         """
         for event in EventType.registered_events():
-            if with_trading_gateway:
-                self.event_engine.register_handlers(event, getattr(self.trading_gateway, event))
+            # add pms handlers at beginning, can not swap the order of pms lite and strategy gateway.
             if with_pms_lite:
                 self.event_engine.register_handlers(event, getattr(self.pms_lite, event))
+            if with_trading_gateway:
+                self.event_engine.register_handlers(event, getattr(self.strategy_gateway, event))
 
     def _load_thread_pool(self,
                           with_tick_channel=True,
