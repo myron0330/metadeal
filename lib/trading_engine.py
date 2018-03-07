@@ -19,7 +19,7 @@ class TradingEngine(object):
                  subscription_engine=None,
                  event_engine=None,
                  strategy_gateway=None,
-                 pms_lite=None):
+                 pms_gateway=None):
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
         self.sim_params = sim_params
@@ -30,7 +30,7 @@ class TradingEngine(object):
         self.subscription_engine = subscription_engine
         self.event_engine = event_engine
         self.strategy_gateway = strategy_gateway
-        self.pms_lite = pms_lite
+        self.pms_gateway = pms_gateway
         self._thread_pool = dict()
 
     def initialize(self):
@@ -38,7 +38,7 @@ class TradingEngine(object):
         Prepare initialize.
         """
         self._register_handlers(with_trading_gateway=True,
-                                with_pms_lite=True)
+                                with_pms_gateway=True)
         self._load_thread_pool(with_tick_channel=True,
                                with_order_book_channel=False,
                                with_response_channel=True,
@@ -46,14 +46,14 @@ class TradingEngine(object):
 
     def _register_handlers(self,
                            with_trading_gateway=True,
-                           with_pms_lite=True):
+                           with_pms_gateway=True):
         """
         Register handlers.
         """
         for event in EventType.registered_events():
             # add pms handlers at beginning, can not swap the order of pms lite and strategy gateway.
-            if with_pms_lite:
-                self.event_engine.register_handlers(event, getattr(self.pms_lite, event))
+            if with_pms_gateway:
+                self.event_engine.register_handlers(event, getattr(self.pms_gateway, event))
             if with_trading_gateway:
                 self.event_engine.register_handlers(event, getattr(self.strategy_gateway, event))
 
