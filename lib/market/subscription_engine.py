@@ -2,27 +2,27 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
-# todo. ADD market quote.
+from web.market.market import *
 
 
 class MarketType(object):
 
-    CTP_TICK = 'CTP_TICK'
-    CTP_ORDER_BOOK = 'CTP_ORDER_BOOK'
+    GDAX_TICK = 'GDAX_TICK'
+    GDAX_ORDER_BOOK = 'GDAX_ORDER_BOOK'
 
 
 market_type_map = {
-    'CTP_TICK': (lambda x: x),
-    'CTP_ORDER_BOOK': (lambda x: x)
+    'GDAX_TICK': GDAXTicker,
+    'GDAX_ORDER_BOOK': GDAXLevel
 }
 
 
-class MarketEngine(object):
+class SubscriptionEngine(object):
 
     @classmethod
-    def fetch_data(cls, market_type):
+    def fetch_market_quote(cls, market_type):
         """
-        Fetch data base on a specific market type
+        Fetch market data base on a specific market type
 
         Args:
             market_type(string): market type string
@@ -30,3 +30,10 @@ class MarketEngine(object):
         market_quote = market_type_map[market_type]()
         for data in market_quote.fetch_data():
             yield data
+
+    @classmethod
+    def fetch_trade_response(cls):
+        """
+        Fetch trade response
+        """
+        raise NotImplementedError
