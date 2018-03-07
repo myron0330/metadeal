@@ -16,7 +16,7 @@ class TradingEngine(object):
     def __init__(self, clock, sim_params,
                  strategy, data_portal,
                  context, account_manager,
-                 market_engine=None,
+                 subscription_engine=None,
                  event_engine=None,
                  strategy_gateway=None,
                  pms_lite=None):
@@ -27,7 +27,7 @@ class TradingEngine(object):
         self.data_portal = data_portal
         self.context = context
         self.account_manager = account_manager
-        self.market_engine = market_engine
+        self.subscription_engine = subscription_engine
         self.event_engine = event_engine
         self.strategy_gateway = strategy_gateway
         self.pms_lite = pms_lite
@@ -103,7 +103,7 @@ class TradingEngine(object):
         """
         Deal with on tick event release.
         """
-        for tick in self.market_engine.fetch_data(market_type):
+        for tick in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(tick['data'])
             item.update({'channel': tick['channel']})
             tick_data = TickData.from_quote(item)
@@ -118,7 +118,7 @@ class TradingEngine(object):
         """
         Deal with on response event release.
         """
-        for order_book in self.market_engine.fetch_data(market_type):
+        for order_book in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(order_book['data'])
             item.update({'channel': order_book['channel']})
             order_book = OrderBookData.from_quote(item)
