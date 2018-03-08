@@ -11,8 +11,7 @@ from ... import logger
 from ... core.clock import clock
 from ... core.schema import *
 from ... core.enum import SecuritiesType
-from ... database.database_api import *
-from ... market.market_quote import MarketQuote
+from lib.gateway.subscriber import MarketQuote
 from ... trade.dividend import Dividend
 from ... trade.order import PMSOrder, OrderState, OrderStateMessage
 from ... utils.date_utils import get_next_date, get_latest_trading_date

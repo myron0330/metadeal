@@ -3,12 +3,12 @@
 #     File:
 # **********************************************************************************#
 from . market_base import *
-from . subscription_engine import SubscriptionEngine
+from . subscriber_gateway import SubscriberGateway
 
 
 __all__ = [
     'TickData',
     'OrderBookData',
     'TradeData',
-    'SubscriptionEngine'
+    'SubscriberGateway'
 ]

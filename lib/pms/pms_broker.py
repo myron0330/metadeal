@@ -5,7 +5,7 @@
 from . base import list_wrap_
 from . broker.futures_broker import FuturesBroker
 from . broker.security_broker import SecurityBroker
-from .. market.market_quote import MarketQuote
+from lib.gateway.subscriber import MarketQuote
 from .. const import (
     STOCK_PATTERN,
     BASE_FUTURES_PATTERN,

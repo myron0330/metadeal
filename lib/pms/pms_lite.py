@@ -11,7 +11,7 @@ from .. import logger
 from ..core.enum import SecuritiesType
 from ..core.schema import SchemaType
 from ..database.database_api import load_adjust_close_price, query_from_
-from ..market.market_quote import MarketQuote
+from lib.gateway.subscriber import MarketQuote
 from ..utils.date_utils import get_previous_trading_date
 from ..utils.dict_utils import DefaultDict
 from ..utils.error_utils import Errors

@@ -13,7 +13,7 @@ from . gateway import (
     PMSGateway,
     StrategyGateway
 )
-from . subscriber import SubscriptionEngine
+from lib.gateway.subscriber import SubscriberGateway
 from . trading_engine import TradingEngine
 from . const import PRESET_KEYARGS
 
@@ -89,8 +89,6 @@ def _strategy_from_code(strategy_code):
     """
     # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
     # 将当前环境中的local变量注入到globals中，用于执行code策略
-    from api import (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
-                     Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
     exec strategy_code in locals()
     strategy = TradingStrategy(**locals())
     return strategy, locals()
@@ -112,7 +110,7 @@ def trading(strategy_code, config=None, **kwargs):
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
-    subscriber_engine = SubscriptionEngine.from_config(sim_params=sim_params)
+    subscriber_engine = SubscriberGateway.from_config(sim_params=sim_params)
     strategy_gateway = StrategyGateway()
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          subscriber_engine=subscriber_engine)

@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: Market base file.
 # **********************************************************************************#
-from .. core.objects import ValueObject
+from lib.core.objects import ValueObject
 
 
 class TickData(ValueObject):

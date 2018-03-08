@@ -7,7 +7,7 @@ import json
 from threading import Thread
 from . context.parameters import SimulationParameters
 from . const import DIGITAL_CURRENCY_PATTERN
-from . subscriber.subscriber_base import *
+from lib.gateway.subscriber import *
 from . event.event_base import EventType
 
 

@@ -14,8 +14,7 @@ from ... core.clock import clock
 from ... core.schema import *
 from ... core.enum import SecuritiesType
 from ... core.market import MarketBarData
-from ... database.database_api import *
-from ... market.market_quote import MarketQuote
+from lib.gateway.subscriber import MarketQuote
 from ... trade.order import PMSOrder, OrderState, OrderStateMessage
 from ... utils.linked_list_utils import Node
 from ... utils.date_utils import get_next_trading_date, get_latest_trading_date

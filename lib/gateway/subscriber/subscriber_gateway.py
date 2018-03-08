@@ -19,7 +19,7 @@ market_type_map = {
 }
 
 
-class SubscriptionEngine(object):
+class SubscriberGateway(object):
 
     def __init__(self, account_ids=None,
                  position_subscriber_pool=None,
