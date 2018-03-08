@@ -232,3 +232,67 @@ class LongShortPosition(object):
                                                                    self.short_amount, self.long_margin,
                                                                    self.short_margin, self.long_cost,
                                                                    self.short_cost, self.profit)
+
+            
+class DigitalCurrencyPosition(object):
+
+    def __init__(self, currency=None, free=0, used=0, exchange=None, cost=0, profit=0.0, value=None):
+        self.currency = currency
+        self.free = free
+        self.used = used
+        self.exchange = exchange
+        self.cost = cost
+        self.profit = profit
+        self.value = value
+
+    @classmethod
+    def from_subscribe(cls, item):
+        """
+        Generate from subscribe.
+
+        Args:
+            item(dict): position item
+        """
+        parameters = {
+            'currency': item['currency'],
+            'free': item['available'],
+            'used': item['amount'] - item['available'],
+            'exchange': item['exchange']
+        }
+        return cls(**parameters)
+
+    @property
+    def total(self):
+        """
+        Total amount
+        """
+        return self.free + self.used
+
+    def evaluate(self, price):
+        # todo. adapt to legal tender
+        if price:
+            self.value = price * self.total
+            self.profit = (price - self.cost) * self.total
+
+    def detail(self):
+        """
+        将相关信息显示为字典
+        """
+        return {
+            'currency': self.currency,
+            'free': self.free,
+            'used': self.used,
+            'total': self.total,
+            'exchange': self.exchange,
+            'cost': self.cost,
+            'profit': self.profit,
+            'value': self.value
+        }
+
+    def __getitem__(self, key, default=None):
+        item_value = self.__getattribute__(key) if self.__getattribute__(key) else default
+        return item_value
+
+    def __repr__(self):
+        return "DigitalCurrencyPosition(currency: {}, free: {}, used: {}, total: {}, exchange: {})".format(
+            self.currency, self.free, self.used, self.total, self.exchange)
