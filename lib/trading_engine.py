@@ -7,7 +7,7 @@ import json
 from threading import Thread
 from . context.parameters import SimulationParameters
 from . const import DIGITAL_CURRENCY_PATTERN
-from . market.market_base import *
+from . subscriber.subscriber_base import *
 from . event.event_base import EventType
 
 
@@ -16,8 +16,10 @@ class TradingEngine(object):
     def __init__(self, clock, sim_params,
                  strategy, data_portal,
                  context, account_manager,
-                 market_engine=None,
-                 trading_gateway=None):
+                 subscription_engine=None,
+                 event_engine=None,
+                 strategy_gateway=None,
+                 pms_gateway=None):
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
         self.sim_params = sim_params
@@ -25,18 +27,35 @@ class TradingEngine(object):
         self.data_portal = data_portal
         self.context = context
         self.account_manager = account_manager
-        self.market_engine = market_engine
-        self.trading_gateway = trading_gateway
+        self.subscription_engine = subscription_engine
+        self.event_engine = event_engine
+        self.strategy_gateway = strategy_gateway
+        self.pms_gateway = pms_gateway
         self._thread_pool = dict()
 
     def initialize(self):
         """
         Prepare initialize.
         """
+        self._register_handlers(with_trading_gateway=True,
+                                with_pms_gateway=True)
         self._load_thread_pool(with_tick_channel=True,
                                with_order_book_channel=False,
                                with_response_channel=True,
                                with_clock_channel=True)
+
+    def _register_handlers(self,
+                           with_trading_gateway=True,
+                           with_pms_gateway=True):
+        """
+        Register handlers.
+        """
+        for event in EventType.registered_events():
+            # add pms handlers at beginning, can not swap the order of pms lite and strategy gateway.
+            if with_pms_gateway:
+                self.event_engine.register_handlers(event, getattr(self.pms_gateway, event))
+            if with_trading_gateway:
+                self.event_engine.register_handlers(event, getattr(self.strategy_gateway, event))
 
     def _load_thread_pool(self,
                           with_tick_channel=True,
@@ -68,7 +87,7 @@ class TradingEngine(object):
         """
         LiveTradingAgent worker start.
         """
-        self.trading_gateway.start()
+        self.event_engine.start()
         for _, thread in self._thread_pool.iteritems():
             thread.start()
 
@@ -76,7 +95,7 @@ class TradingEngine(object):
         """
         LiveTradingAgent worker stop.
         """
-        self.trading_gateway.stop()
+        self.event_engine.stop()
         for _, thread in self._thread_pool.iteritems():
             thread.join()
 
@@ -84,31 +103,31 @@ class TradingEngine(object):
         """
         Deal with on tick event release.
         """
-        for tick in self.market_engine.fetch_data(market_type):
+        for tick in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(tick['data'])
             item.update({'channel': tick['channel']})
-            tick_data = TickData.from_quote(item)
-            kwargs = {
+            tick_data = TickData.from_subscribe(item)
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
                 'tick': tick_data
             }
-            self.trading_gateway.publish(EventType.event_on_tick, **kwargs)
+            self.event_engine.publish(EventType.event_on_tick, **parameters)
 
     def _order_book_engine(self, market_type):
         """
         Deal with on response event release.
         """
-        for order_book in self.market_engine.fetch_data(market_type):
+        for order_book in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(order_book['data'])
             item.update({'channel': order_book['channel']})
-            order_book = OrderBookData.from_quote(item)
-            kwargs = {
+            order_book = OrderBookData.from_subscribe(item)
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
                 'order_book': order_book
             }
-            self.trading_gateway.publish(EventType.event_order_book, **kwargs)
+            self.event_engine.publish(EventType.event_order_book, **parameters)
 
     def _handle_data_engine(self, slots=0.5):
         """
@@ -116,11 +135,11 @@ class TradingEngine(object):
         """
         while True:
             time.sleep(slots)
-            kwargs = {
+            parameters = {
                 'strategy': self.strategy,
                 'context': self.context
             }
-            self.trading_gateway.publish(EventType.event_handle_data, **kwargs)
+            self.event_engine.publish(EventType.event_handle_data, **parameters)
 
     def _response_engine(self):
         """

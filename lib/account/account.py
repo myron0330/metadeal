@@ -30,11 +30,15 @@ class AccountConfig(object):
         'margin_rate',
         'position_base',
         'cost_base',
-        'dividend_method'
+        'dividend_method',
+        'exchange',
+        'account_id'
     ]
 
     def __init__(self, account_type, capital_base=None, commission=None,
-                 slippage=None, margin_rate=None, position_base=None, cost_base=None, dividend_method=None):
+                 slippage=None, margin_rate=None, position_base=None,
+                 cost_base=None, dividend_method=None, exchange=None,
+                 account_id=None):
         self.account_type = account_type
         self.capital_base = capital_base
         self.commission = commission
@@ -43,6 +47,8 @@ class AccountConfig(object):
         self.position_base = position_base if position_base else dict()
         self.cost_base = cost_base if cost_base else dict()
         self.dividend_method = dividend_method
+        self.exchange = exchange
+        self.account_id = account_id
 
     @property
     def __dict__(self):
@@ -55,11 +61,9 @@ class AccountConfig(object):
         return self.__dict__
 
     def __repr__(self):
-        return 'Account(account_type: {}, capital_base: {}, commission: {}, slippage: {}, margin_rate: {}, ' \
-               'amount_base: {}, cost_base: {}, dividend_method: {})'.format(self.account_type, self.capital_base,
-                                                                             self.commission, self.slippage,
-                                                                             self.margin_rate, self.position_base,
-                                                                             self.cost_base, self.dividend_method)
+        return 'Account(account_type: {}, exchange: {}, account_id: {}, ' \
+               'commission: {}, position_base: {})'.format(self.account_type, self.exchange, self.account_id,
+                                                           self.position_base, self.commission)
 
 
 class AccountManager(object):
@@ -74,7 +78,7 @@ class AccountManager(object):
         self._registered_accounts_params = dict()
 
     @classmethod
-    def from_config(cls, clock, sim_params, data_portal, accounts=None):
+    def from_config(cls, clock, sim_params, data_portal, event_engine=None, pms_gateway=None, accounts=None):
         """
         Generate account manager from config.
 
@@ -82,6 +86,8 @@ class AccountManager(object):
             clock(obj): Clock
             sim_params(obj): simulation parameters
             data_portal(obj): data portal
+            event_engine(obj): event engine
+            pms_gateway(obj): pms gateway
             accounts(dict): accounts config dict
 
         Returns:
@@ -98,7 +104,9 @@ class AccountManager(object):
                 position_base=sim_params.position_base,
                 cost_base=sim_params.cost_base)}
         account_manager = cls(accounts)
-        account_manager.register_accounts(clock, sim_params, data_portal)
+        account_manager.register_accounts(clock, sim_params, data_portal,                                          
+                                          event_engine=event_engine,
+                                          pms_gateway=pms_gateway)
         return account_manager
 
     @property
@@ -133,7 +141,7 @@ class AccountManager(object):
             accounts = self.filter_accounts(SecuritiesType.futures).values()
             return accounts[0] if len(accounts) > 0 else None
 
-    def register_accounts(self, clock, sim_params, data_portal, accounts=None):
+    def register_accounts(self, clock, sim_params, data_portal, event_engine=None, pms_gateway=None, accounts=None):
         """
         Register accounts by clock, sim_params and data_portal.
 
@@ -141,6 +149,8 @@ class AccountManager(object):
             clock(obj): Clock
             sim_params(obj): simulation parameters
             data_portal(obj): data portal
+            event_engine(obj): event engine
+            pms_gateway(obj): pms gateway
             accounts(dict): accounts config
         """
         self._accounts.update(accounts) if accounts else None
@@ -168,7 +178,10 @@ class AccountManager(object):
             current_sim_params.portfolio = self.initiate_portfolio(config, current_sim_params)
             if config.account_type == SecuritiesType.futures:
                 self._registered_accounts[account] = \
-                    FuturesAccount.from_config(clock, current_sim_params, data_portal)
+                    FuturesAccount.from_config(clock, current_sim_params, data_portal,
+                                               event_engine=event_engine,
+                                               pms_gateway=pms_gateway,
+                                               account_id=config.account_id)
             else:
                 raise Errors.INVALID_ACCOUNT_TYPE
 

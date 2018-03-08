@@ -1,0 +1,48 @@
+# -*- coding: UTF-8 -*-
+# **********************************************************************************#
+#     File:
+# **********************************************************************************#
+import time
+import traceback
+import threading
+from configs import logger
+from web.connection.xdaex_pms import fetch_position_from_xdaex
+
+
+class PositionSubscriber(object):
+
+    def __init__(self, account_id):
+        self._index = 0  # separate reading and writing
+        self.account_id = account_id
+        self._position = [[], []]
+        self.fresh_cache_thread()
+
+    def _get_index(self):
+        return (self._index + 1) % 2
+
+    def _fetch_data(self):
+        return fetch_position_from_xdaex(self.account_id)
+
+    def _loop_fresh_cache(self):
+        while True:
+            try:
+                status_code, data = self._fetch_data()
+                if str(status_code).startswith('20'):
+                    self._position[self._get_index()] = data
+                    self._index = self._get_index()
+                time.sleep(0.5)
+            except:
+                logger.error(traceback.format_exc())
+
+    def fresh_cache_thread(self):
+        threading.Thread(target=self._loop_fresh_cache, args=()).start()
+
+    def fetch_data(self):
+        return self._position[self._index]
+
+
+if __name__ == '__main__':
+    subscriber = PositionSubscriber('2593e2135e80435eba6661f5301c8e8c')
+    while True:
+        print subscriber.fetch_data()
+        time.sleep(1)

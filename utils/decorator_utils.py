@@ -2,7 +2,20 @@
 # **********************************************************************************#
 #     File: Decorator utils
 # **********************************************************************************#
+from threading import Lock
 
+
+def mutex_lock(func, lock=Lock()):
+
+    def decorator(*args, **kwargs):
+        try:
+            lock.acquire()
+            result = func(*args, **kwargs)
+        finally:
+            lock.release()
+        return result
+
+    return decorator
 
 def singleton(cls):
     """
