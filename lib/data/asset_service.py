@@ -6,10 +6,7 @@ import pandas as pd
 from utils.error_utils import Errors
 from utils.decorator_utils import singleton
 from . base_service import ServiceInterface
-from .. data_loader.data_api import *
 from .. trade.cost import Commission, Slippage
-from .. data_loader.cache_api import get_futures_base_info, get_futures_artificial_info, MktFutureInfoByContractObjects
-from utils.datetime_utils import normalize_date, get_trading_days, previous_trading_day, get_end_date
 from .. core.pattern import (
     STOCK_PATTERN,
     BASE_FUTURES_PATTERN,

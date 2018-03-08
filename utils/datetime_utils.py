@@ -9,6 +9,18 @@ from datetime import datetime, timedelta
 # from .. data.database_api import get_direct_trading_day, get_trading_days
 
 
+def get_trading_days(start, end):
+    """
+    Get trading days by start and end.
+    Args:
+        start(string or datetime.datetime): start time
+        end(string or datetime.datetime): end time
+    """
+    start, end = normalize_date(start), normalize_date(end)
+    trading_days = pd.date_range(start=start, end=end, freq='B')
+    return trading_days
+
+
 def normalize_date(date):
     """
     将日期标准化为datetime.datetime格式

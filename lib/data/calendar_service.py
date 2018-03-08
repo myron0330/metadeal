@@ -2,7 +2,7 @@
 import bisect
 from datetime import datetime
 from . base_service import ServiceInterface
-from .. utils.datetime_utils import (
+from utils.datetime_utils import (
     get_trading_days,
     get_direct_trading_day,
     get_end_date
