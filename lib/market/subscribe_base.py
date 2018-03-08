@@ -81,9 +81,9 @@ class TickData(ValueObject):
         object.__setattr__(self, key, type_map[key](value) if value is not None else value)
 
     @classmethod
-    def from_quote(cls, item):
+    def from_subscribe(cls, item):
         """
-        Generate from market quote.
+        Generate from market subscribe.
         """
         item['receive_timestamp'] = item.pop('receiveTimestamp')
         item['symbol'] = item.pop('product_id')
@@ -111,9 +111,9 @@ class OrderBookData(ValueObject):
         self.channel = channel
 
     @classmethod
-    def from_quote(cls, item):
+    def from_subscribe(cls, item):
         """
-        Generate from market quote.
+        Generate from market subscribe.
         """
         item['receive_timestamp'] = item.pop('receiveTimestamp')
         item['symbol'] = item.pop('product_id')
@@ -189,9 +189,9 @@ class TradeData(ValueObject):
         object.__setattr__(self, key, type_map[key](value) if value is not None else value)
 
     @classmethod
-    def from_quote(cls, item):
+    def from_subscribe(cls, item):
         """
-        Generate from exchange quote.
+        Generate from exchange subscribe.
         """
         item['account_id'] = item.pop('accountId')
         item['exchange_account_id'] = item.pop('exchangeAccountId')
