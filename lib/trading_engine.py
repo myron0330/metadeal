@@ -7,7 +7,7 @@ import json
 from threading import Thread
 from . context.parameters import SimulationParameters
 from . const import DIGITAL_CURRENCY_PATTERN
-from . market.market_base import *
+from . subscriber.subscriber_base import *
 from . event.event_base import EventType
 
 
@@ -106,7 +106,7 @@ class TradingEngine(object):
         for tick in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(tick['data'])
             item.update({'channel': tick['channel']})
-            tick_data = TickData.from_quote(item)
+            tick_data = TickData.from_subscribe(item)
             parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
@@ -121,7 +121,7 @@ class TradingEngine(object):
         for order_book in self.subscription_engine.fetch_market_quote(market_type):
             item = json.loads(order_book['data'])
             item.update({'channel': order_book['channel']})
-            order_book = OrderBookData.from_quote(item)
+            order_book = OrderBookData.from_subscribe(item)
             parameters = {
                 'strategy': self.strategy,
                 'context': self.context,
