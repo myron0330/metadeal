@@ -3,40 +3,16 @@
 #     File: PMS lite manager file
 #   Author: Myron
 # **********************************************************************************#
-from copy import copy
 from configs import logger
-from .. core.enums import AccountType
-from .. trade.position import choose_position
 from .. utils.dict_utils import (
     DefaultDict,
     CompositeDict
 )
-from .. utils.error_utils import Errors
 from .. gateway import BaseGateway
-from .. trade import OrderState, OrderStateMessage
-
-
-def _get_positions_by(account_id, account_type=None, position_base=None):
-    """
-    Get positions by account id.
-
-    Args:
-        account_id(string): account id
-        account_type(string): account type
-        position_base(dict): position base
-
-    Returns:
-        dict: symbol-position
-    """
-    if position_base is not None:
-        positions = dict()
-        position_obj = choose_position(account_type)
-        for symbol, amount in position_base.iteritems():
-            if account_type == AccountType.digital_currency:
-                positions[symbol] = position_obj(symbol=symbol, free=amount)
-    else:
-        raise NotImplementedError
-    return positions
+from .. trade import (
+    OrderState, 
+    OrderStateMessage
+)
 
 
 class PMSGateway(BaseGateway):
@@ -50,7 +26,7 @@ class PMSGateway(BaseGateway):
     def __init__(self, clock=None, accounts=None, data_portal=None,
                  position_info=None, initial_value_info=None,
                  order_info=None, trade_info=None, benchmark_info=None,
-                 total_commission_info=None):
+                 total_commission_info=None, subscriber_engine=None):
         """
         组合管理配置
 
@@ -64,6 +40,7 @@ class PMSGateway(BaseGateway):
             trade_info(dict): 成交记录 |-> dict(account: dict(date: list))
             benchmark_info(dict): 用户对比权益曲线 |-> dict(account: string)
             total_commission_info(dict): 手续费记录　｜-> dict(account: dict(date: float))
+            subscriber_engine(obj): subscriber engine.
         """
         super(PMSGateway, self).__init__(gateway_name='PMS_Lite')
         self.clock = clock
@@ -76,37 +53,46 @@ class PMSGateway(BaseGateway):
         self.trade_info = trade_info or DefaultDict(DefaultDict(list))
         self.benchmark_info = benchmark_info or dict()
         self.total_commission_info = total_commission_info or DefaultDict(DefaultDict(0))
+        self.subscriber_engine = subscriber_engine
         self._account_name_id_map = {account: config.account_id for account, config in self.accounts.iteritems()}
         self._account_id_name_map = {config.account_id: account for account, config in self.accounts.iteritems()}
 
     @classmethod
-    def from_config(cls, clock, sim_params, data_portal, accounts=None):
+    def from_config(cls, clock, sim_params, data_portal, accounts=None, subscriber_engine=None):
         """
         从配置中生而成 PMSManager
         """
         position_info = DefaultDict(DefaultDict(dict))
         initial_value_info = DefaultDict(dict)
-        initial_orders_info = DefaultDict(dict)
         total_commission_info = DefaultDict(DefaultDict(0))
         benchmark_info = dict()
+        accounts = accounts or sim_params.accounts
         for account, config in accounts.iteritems():
-            account_type = config.account_type
-            position_base = config.position_base
-            if account_type == AccountType.digital_currency:
-                account_id = config.account_id
-                position_info[account_id][sim_params.trading_days[0]] = _get_positions_by(account_id=account_id,
-                                                                                          account_type=account_type,
-                                                                                          position_base=position_base)
-            else:
-                raise Errors.INVALID_ACCOUNT_TYPE
-            initial_value_info[account] = {
-                'positions': copy(position_info[account_id][sim_params.trading_days[0]])
-                                           }
-            initial_orders_info[account_id] = dict()
+            account_id = config.account_id
             benchmark_info[account_id] = sim_params.major_benchmark
         return cls(clock=clock, accounts=accounts, data_portal=data_portal,
                    position_info=position_info, initial_value_info=initial_value_info,
-                   benchmark_info=benchmark_info, total_commission_info=total_commission_info)
+                   benchmark_info=benchmark_info, total_commission_info=total_commission_info,
+                   subscriber_engine=subscriber_engine)
+
+    def get_positions(self, account_id):
+        """
+        Get positions.
+
+        Args:
+            account_id(string): account id
+        """
+        return self.subscriber_engine.query_position_detail(account_id)
+
+    def get_orders(self, account_id):
+        """
+        Get orders.
+
+        Args:
+            account_id(string): account id
+        """
+        # todo. fix orders.
+        return self.order_info[account_id][self.clock.current_date]
 
     def send_order(self, order, account_id=None):
         """
@@ -144,42 +130,36 @@ class PMSGateway(BaseGateway):
         """
         On trade event.
         """
-        logger.info('[PMS Lite] [on trade]')
         pass
 
     def on_order(self, *args, **kwargs):
         """
         On order event.
         """
-        logger.info('[PMS Lite] [on order]')
         pass
 
     def on_tick(self, *args, **kwargs):
         """
         On tick event.
         """
-        logger.info('[PMS Lite] [on tick]')
         pass
 
     def on_log(self, *args, **kwargs):
         """
         On log event.
         """
-        logger.info('[PMS Lite] [on log]')
         pass
 
     def on_order_book(self, *args, **kwargs):
         """
         On order book event.
         """
-        logger.info('[PMS Lite] [on order book]')
         pass
 
     def handle_data(self, *args, **kwargs):
         """
         Handle data event.
         """
-        logger.info('[PMS Lite] [handle data]')
         pass
 
     def synchronize_broker(self, feedback_info):
