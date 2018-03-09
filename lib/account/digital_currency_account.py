@@ -6,7 +6,8 @@ import numpy as np
 from . base_account import BaseAccount
 from .. trade import (
     DigitalCurrencyOrder,
-    DigitalCurrencyPosition
+    DigitalCurrencyPosition,
+    OrderState
 )
 from .. event.event_base import EventType
 from .. utils.error_utils import (
@@ -95,4 +96,38 @@ class DigitalCurrencyAccount(BaseAccount):
         """
         Get trades list in current date.
         """
-        raise NotImplementedError
+        return self.pms_gateway.get_trades(self.account_id)
+
+    def get_orders(self, state=OrderState.ACTIVE, symbol='all', **kwargs):
+        """
+        Get orders by state and symbol.
+
+        Args:
+            state(string): order state.
+            symbol(string): currency pair symbol
+
+        Returns:
+            list: qualified order list
+        """
+        status = state if state else kwargs.get('status', OrderState.ACTIVE)
+        symbol = [symbol] if not isinstance(symbol, list) and symbol is not 'all' else symbol
+        status = [status] if not isinstance(status, list) else status
+        if not set(status).issubset(set(OrderState.ALL)):
+            raise ValueError('Invalid OrderStatus %s, '
+                             'please refer to document for more information' % '/'.join(status))
+        orders = self.pms_gateway.get_orders(self.account_id)
+        return [order for order_id, order in orders.iteritems()
+                if order.state in status and symbol == 'all' or order.symbol in symbol]
+
+    def get_order(self, order_id):
+        """
+        Get order by order id.
+
+        Args:
+            order_id(string): order_id
+
+        Returns:
+            Order or None: Order instance if order id exists, else None
+        """
+        order = self.pms_gateway.get_orders(self.account_id).get(order_id)
+        return order
