@@ -4,8 +4,8 @@
 # **********************************************************************************#
 from queue import Queue, Empty
 from threading import Thread
-from utils.dict_utils import DefaultDict
 from . event_base import Event, EventType
+from .. utils.dict_utils import DefaultDict
 
 
 class EventEngine(object):
@@ -18,7 +18,7 @@ class EventEngine(object):
                  event_handlers=None):
         self._active = active
         self._event_queue = event_queue or Queue()
-        self._event_handlers = event_handlers or DefaultDict(set)
+        self._event_handlers = event_handlers or DefaultDict(list)
         self._processor = Thread(target=self._run)
 
     def start(self):
@@ -61,9 +61,9 @@ class EventEngine(object):
             handler(func): callable function.
         """
         if isinstance(handler, (list, set, tuple)):
-            self._event_handlers[event_type] |= set(handler)
+            self._event_handlers[event_type] += list(handler)
         else:
-            self._event_handlers[event_type].add(handler)
+            self._event_handlers[event_type].append(handler)
 
     def remove_handlers(self, event_type, handler):
         """
@@ -73,7 +73,8 @@ class EventEngine(object):
             handler(func): callable function.
         """
         if isinstance(handler, (list, set, tuple)):
-            self._event_handlers[event_type] -= set(handler)
+            for _ in handler:
+                self._event_handlers[event_type].remove(_)
         else:
             self._event_handlers[event_type].remove(handler)
 
