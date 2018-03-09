@@ -3,19 +3,19 @@
 #     File:
 # **********************************************************************************#
 from . account.account import AccountManager
-from . context.strategy import TradingStrategy
-from . context.parameters import SimulationParameters
+from . const import PRESET_KEYARGS
 from . context.context import Context
+from . context.parameters import SimulationParameters
+from . context.strategy import TradingStrategy
 from . core.clock import Clock
 from . data.data_portal import DataPortal
 from . event.event_engine import EventEngine
 from . gateway import (
     PMSGateway,
-    StrategyGateway
+    StrategyGateway,
+    SubscriberGateway
 )
-from lib.gateway.subscriber import SubscriberGateway
 from . trading_engine import TradingEngine
-from . const import PRESET_KEYARGS
 
 
 def _parse_prior_params(bt_config, code_config, default_config, key, prior='pre'):
@@ -89,6 +89,10 @@ def _strategy_from_code(strategy_code):
     """
     # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
     # 将当前环境中的local变量注入到globals中，用于执行code策略
+    from api import (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
+                     Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
+    assert (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
+            Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
     exec strategy_code in locals()
     strategy = TradingStrategy(**locals())
     return strategy, locals()
@@ -110,10 +114,10 @@ def trading(strategy_code, config=None, **kwargs):
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
-    subscriber_engine = SubscriberGateway.from_config(sim_params=sim_params)
     strategy_gateway = StrategyGateway()
+    subscriber_gateway = SubscriberGateway.from_config(sim_params=sim_params, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
-                                         subscriber_engine=subscriber_engine)
+                                         subscriber_gateway=subscriber_gateway)
     account_manager = AccountManager.from_config(clock, sim_params, data_portal,
                                                  event_engine=event_engine,
                                                  pms_gateway=pms_gateway)
@@ -123,11 +127,11 @@ def trading(strategy_code, config=None, **kwargs):
                       asset_service=data_portal.asset_service,
                       calendar_service=data_portal.calendar_service,
                       account_manager=account_manager)
-    trading_agent = TradingEngine(clock, sim_params, strategy,
-                                  data_portal, context, account_manager,
-                                  subscription_engine=subscriber_engine,
-                                  strategy_gateway=strategy_gateway,
-                                  event_engine=event_engine,
-                                  pms_gateway=pms_gateway)
-    trading_agent.initialize()
-    trading_agent.start()
+    trading_engine = TradingEngine(clock, sim_params, strategy,
+                                   data_portal, context, account_manager,
+                                   event_engine=event_engine,
+                                   subscriber_gateway=subscriber_gateway,
+                                   strategy_gateway=strategy_gateway,
+                                   pms_gateway=pms_gateway)
+    trading_engine.initialize()
+    trading_engine.start()
