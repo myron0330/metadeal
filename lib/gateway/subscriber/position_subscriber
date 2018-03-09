@@ -6,7 +6,7 @@ import time
 import traceback
 import threading
 from configs import logger
-from web.connection.xdaex_pms import fetch_position_from_xdaex
+from . subscriber_base import fetch_position_from_pms
 
 
 class PositionSubscriber(object):
@@ -21,7 +21,7 @@ class PositionSubscriber(object):
         return (self._index + 1) % 2
 
     def _fetch_data(self):
-        return fetch_position_from_xdaex(self.account_id)
+        return fetch_position_from_pms(self.account_id)
 
     def _loop_fresh_cache(self):
         while True:
