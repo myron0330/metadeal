@@ -304,3 +304,101 @@ class Order(BaseOrder):
     def __repr__(self):
         return ''.join(['Order', json.dumps(self.__dict__).replace('"_', '').replace('"', '').replace('{', '(').
                        replace('}', ')').replace('null', 'None')])
+
+
+class DigitalCurrencyOrder(ValueObject):
+
+    __slots__ = ['symbol',
+                 'amount',
+                 'order_time',
+                 'order_type',
+                 'price',
+                 'state',
+                 'state_message',
+                 'order_id',
+                 'account_id',
+                 'filled_time',
+                 'filled_amount',
+                 'transact_price',
+                 'fee',
+                 'fee_currency',
+                 'side',
+                 'direction',
+                 'turnover_value',
+                 'exchange']
+
+    def __init__(self, symbol, amount, order_time=None, order_type='market', price=0.,
+                 state=OrderState.ORDER_SUBMITTED, state_message=OrderStateMessage.TO_FILL,
+                 order_id=None, account_id=None, filled_time=None, filled_amount=None,
+                 transact_price=None, fee=None, fee_currency=None,
+                 side=None, direction=None, turnover_value=None, exchange=None):
+        self.symbol = symbol
+        self.amount = amount
+        self.order_time = order_time
+        self.order_type = order_type
+        self.price = price
+        self.state = state
+        self.state_message = state_message
+        self.order_id = order_id or str(uuid1())
+        self.account_id = account_id
+        self.filled_time = filled_time
+        self.filled_amount = filled_amount
+        self.transact_price = transact_price
+        self.fee = fee
+        self.fee_currency = fee_currency
+        self.side = side or ('BUY' if np.sign(amount) == 1 else 'SELL')
+        self.direction = direction or (amount/abs(amount) if amount != 0 else 0)
+        self.turnover_value = turnover_value
+        self.exchange = exchange
+
+    def update_from_subscribe(self, item):
+        """
+        Update from subscribe.
+        """
+        order_state_map = {
+            'PENDING_NEW': OrderState.ORDER_SUBMITTED,
+            'NEW': OrderState.OPEN,
+            'PARTIALLY_FILLED': OrderState.PARTIAL_FILLED,
+            'FILLED': OrderState.FILLED,
+            'REJECTED': OrderState.REJECTED,
+            'CANCELED': OrderState.CANCELED
+        }
+        order_state_message_map = {
+            'PENDING_NEW': OrderStateMessage.TO_FILL,
+            'NEW': OrderStateMessage.OPEN,
+            'PARTIALLY_FILLED': OrderStateMessage.PARTIAL_FILLED,
+            'FILLED': OrderStateMessage.FILLED,
+            'REJECTED': OrderStateMessage.REJECT,
+            'CANCELED': OrderStateMessage.CANCELED
+        }
+        self.state = order_state_map[item['orderStatus']]
+        self.state_message = order_state_message_map[item['orderStatus']]
+        self.exchange = item['exchange']
+        self.price = item['price']
+        self.filled_amount = item['filled']
+        self.transact_price = item['avgPrice']
+        self.fee = item['fee']
+        self.fee_currency = item['feeCurrency']
+        self.turnover_value = item['cost']
+
+    def to_request(self):
+        """
+        To exchange request.
+        """
+        return {
+            'orderType': self.order_type.upper(),
+            'symbol': self.symbol.split('.')[0],
+            'side': self.side,
+            'price': self.price,
+            'amount': self.amount,
+            'extOrdId': self.order_id
+        }
+
+    def __repr__(self):
+        content = ', '.join(['{}: {{}}'.format(item) for item in self.__slots__]).format(
+            self.symbol, self.amount, self.order_time, self.order_type, self.price, self.state,
+            self.state_message.encode('utf-8'), self.order_id, self.account_id, self.filled_time,
+            self.filled_amount, self.transact_price, self.fee, self.fee_currency, self.side,
+            self.direction, self.turnover_value, self.exchange
+        )
+        return 'DigitalCurrencyOrder({})'.format(content)
