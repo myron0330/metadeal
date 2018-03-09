@@ -1,19 +1,18 @@
 # -*- coding: UTF-8 -*-
 # **********************************************************************************#
-#     File: XDAEX exchange gateway.
+#     File: XDAEX strategy gateway.
 # **********************************************************************************#
 import requests
 import traceback
 from configs import *
-from . base_gateway import BaseGateway
+from . base_gateway import BaseStrategyGateway
 from .. utils.decorator_utils import mutex_lock
 
 
-class StrategyGateway(BaseGateway):
+class StrategyGateway(BaseStrategyGateway):
 
-    def __init__(self, gateway_name='Gateway'):
-        super(StrategyGateway, self).__init__(self)
-        self.gateway_name = gateway_name
+    def __init__(self, gateway_name='Strategy_Gateway'):
+        super(StrategyGateway, self).__init__(gateway_name=gateway_name)
 
     @mutex_lock
     def on_tick(self, strategy, context, tick, **kwargs):
