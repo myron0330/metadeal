@@ -20,19 +20,9 @@ def is_collection(item):
     return isinstance(item, (list, tuple, set))
 
 
-class UniverseService:
+class UniverseService(object):
     """
-    提供各类Universe查询服务的工具
-    * benchmarks(set): 初始化UniverseService时所传入universe
-    * dynamic_universe_dict(dict): 去除条件限制后的各交易日universe
-    * full_universe(list): 可访问属性，交易日期间dynamic_universe中存在的所有symbol集合，及benchmark、init_universe
-    * full_universe_set(set): 生成full_universe内部操作成员
-    * init_universe(set): 初始化UniverseService时所传入init_universe_list
-    * l1_ban_list(list): set_ban_list所设置值
-    * l4_ban_list(list): set_ban_list所设置值
-    * tradable_dict(dict): trading_days可交易universe
-    * trading_days(list): 初始化所传入交易日
-    * universe: 初始化所传入Universe
+    Universe service.
     """
     # todo: update doc string
 

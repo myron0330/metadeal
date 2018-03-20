@@ -3,7 +3,7 @@
 #     File:
 # **********************************************************************************#
 from . account.account import AccountManager
-from . const import PRESET_KEYARGS
+from . const import DEFAULT_KEYWORDS
 from . context.context import Context
 from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
@@ -46,19 +46,19 @@ def _parse_sim_params(config, local_variables):
         config(dict): config parameters
         local_variables(dict): parser parameters
     """
-    start = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'start')
-    end = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'end')
-    benchmark = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'benchmark')
-    universe = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'universe')
-    capital_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'capital_base')
-    position_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'position_base')
-    cost_base = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'cost_base')
-    commission = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'commission')
-    slippage = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'slippage')
-    refresh_rate = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'refresh_rate')
-    freq = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'freq')
-    max_history_window = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'max_history_window')
-    accounts = _parse_prior_params(config, local_variables, PRESET_KEYARGS, 'accounts')
+    start = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'start')
+    end = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'end')
+    benchmark = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'benchmark')
+    universe = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'universe')
+    capital_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'capital_base')
+    position_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'position_base')
+    cost_base = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'cost_base')
+    commission = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'commission')
+    slippage = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'slippage')
+    refresh_rate = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'refresh_rate')
+    freq = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'freq')
+    max_history_window = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'max_history_window')
+    accounts = _parse_prior_params(config, local_variables, DEFAULT_KEYWORDS, 'accounts')
     sim_params = SimulationParameters(
         start=start,
         end=end,

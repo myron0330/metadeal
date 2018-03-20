@@ -5,11 +5,9 @@
 import json
 import time
 from threading import Thread
-
-from quartz.gateway.subscriber import *
-from .const import DIGITAL_CURRENCY_PATTERN
-from .context.parameters import SimulationParameters
-from .event.event_base import EventType
+from . gateway.subscriber import *
+from . context.parameters import SimulationParameters
+from . event.event_base import EventType
 
 
 class TradingEngine(object):
@@ -72,9 +70,7 @@ class TradingEngine(object):
         Load thread pool
         """
         full_universe = self.data_portal.universe_service.full_universe
-        exchange_list = set({symbol.split('.')[-1] for symbol in full_universe
-                             if DIGITAL_CURRENCY_PATTERN.match(symbol)})
-        for exchange in exchange_list:
+        for exchange in full_universe:
             if with_tick_channel:
                 tick_channel = '{}_TICK'.format(exchange)
                 self._thread_pool[tick_channel] = \
@@ -84,7 +80,6 @@ class TradingEngine(object):
                 self._thread_pool[order_bool_channel] = \
                     Thread(target=self._order_book_engine, args=(order_bool_channel,))
         if with_response_channel:
-            # todo. complete the order response and trade response channel.
             self._thread_pool['RESPONSE'] = Thread(target=self._response_engine, )
         if with_clock_channel:
             self._thread_pool['CLOCK'] = Thread(target=self._handle_data_engine)
