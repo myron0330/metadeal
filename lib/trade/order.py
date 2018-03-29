@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
 import numpy as np
+from uuid import uuid1
+from .. core.objects import ValueObject
 from .. const import (
     DEFAULT_FILLED_AMOUNT,
     DEFAULT_FILLED_TIME,
     DEFAULT_TRANSACT_PRICE,
 )
-from uuid import uuid1
-
-
-def _get_date_hash(date):
-    return date[:10]
 
 
 class OrderStateMessage(object):
@@ -62,132 +59,53 @@ class OrderState(object):
     ALL = [ORDER_SUBMITTED, CANCEL_SUBMITTED, OPEN, PARTIAL_FILLED, FILLED, REJECTED, CANCELED, ERROR]
 
 
-class BaseOrder(object):
+class BaseOrder(ValueObject):
 
-    def __init__(self, symbol, order_amount, order_time=None, direction=None, order_type='market', price=0.,
-                 order_id=None, state=OrderState.ORDER_SUBMITTED):
-        self._symbol = symbol
-        self._order_amount = abs(order_amount)
-        self._order_time = order_time
-        self._direction = direction
-        self._order_type = order_type
-        self._price = price
-        self._state = state
-        self._state_message = OrderStateMessage.TO_FILL
-        self._order_id = order_id
-        self._filled_time = DEFAULT_FILLED_TIME
-        self._filled_amount = DEFAULT_FILLED_AMOUNT
-        self._transact_price = DEFAULT_TRANSACT_PRICE
-        self._slippage = 0.
-        self._commission = 0.
+    __slots__ = [
+        'symbol',
+        'order_amount',
+        'order_time',
+        'direction',
+        'order_type',
+        'price',
+        'state',
+        'state_message',
+        'order_id',
+        'filled_time',
+        'filled_amount',
+        'transact_price',
+        'slippage',
+        'commission'
+    ]
 
-    @property
-    def symbol(self):
-        return self._symbol
-
-    @property
-    def order_amount(self):
-        return self._order_amount
-
-    @property
-    def order_time(self):
-        return self._order_time
-
-    @property
-    def direction(self):
-        return self._direction
-
-    @property
-    def price(self):
-        return self._price
-
-    @property
-    def state(self):
-        return self._state
-
-    @property
-    def state_message(self):
-        return self._state_message
-
-    @property
-    def order_id(self):
-        return self._order_id
-
-    @property
-    def filled_time(self):
-        return self._filled_time
-
-    @property
-    def filled_amount(self):
-        return self._filled_amount
-
-    @property
-    def transact_price(self):
-        return self._transact_price
-
-    @property
-    def open_amount(self):
-        return self._order_amount - self._filled_amount
-
-    @property
-    def commission(self):
-        return self._commission
-
-    @property
-    def slippage(self):
-        return self._slippage
-
-    @symbol.setter
-    def symbol(self, *args):
-        raise AttributeError('Exception in "BaseOrder.symbol": user must not modify order.symbol!')
-
-    @order_amount.setter
-    def order_amount(self, *args):
-        raise AttributeError('Exception in "BaseOrder.order_amount": user must not modify order.order_amount!')
-
-    @order_time.setter
-    def order_time(self, *args):
-        raise AttributeError('Exception in "BaseOrder.order_time": user must not modify order.order_time!')
-
-    @direction.setter
-    def direction(self, *args):
-        raise AttributeError('Exception in "BaseOrder.direction": user must not modify order.direction!')
-
-    @price.setter
-    def price(self, *args):
-        raise AttributeError('Exception in "BaseOrder.price": User must not modify order.price!')
-
-    @state.setter
-    def state(self, *args):
-        raise AttributeError('Exception in "BaseOrder.state": user must not modify order.state!')
-
-    @state_message.setter
-    def state_message(self, *args):
-        raise AttributeError('Exception in "BaseOrder.state_message": user must not modify order.state_message!')
-
-    @order_id.setter
-    def order_id(self, *args):
-        raise AttributeError('Exception in "BaseOrder.order_id": User must not modify order.order_id!')
-
-    @filled_time.setter
-    def filled_time(self, *args):
-        raise AttributeError('Exception in "BaseOrder.filled_time": user must not modify order.filled_time!')
-
-    @filled_amount.setter
-    def filled_amount(self, *args):
-        raise AttributeError('Exception in "BaseOrder.filled_amount": user must not modify order.filled_amount!')
-
-    @transact_price.setter
-    def transact_price(self, *args):
-        raise AttributeError('Exception in "BaseOrder.transact_price": User must not modify order.transact_price!')
-
-    @commission.setter
-    def commission(self, *args):
-        raise AttributeError('Exception in "Order.commission": User must not modify order.commission!')
-
-    @slippage.setter
-    def slippage(self, *args):
-        raise AttributeError('Exception in "Order.slippage": User must not modify Order.slippage!')
+    def __init__(self, symbol=None,
+                 order_amount=None,
+                 order_time=None,
+                 direction=None,
+                 order_type='market',
+                 price=0.,
+                 state=OrderState.ORDER_SUBMITTED,
+                 state_message=OrderStateMessage.TO_FILL,
+                 order_id=None,
+                 filled_time=None,
+                 filled_amount=None,
+                 transact_price=None,
+                 slippage=None,
+                 commission=None):
+        self.symbol = symbol
+        self.order_amount = order_amount
+        self.order_time = order_time
+        self.direction = direction
+        self.order_type = order_type
+        self.price = price
+        self.state = state
+        self.state_message = state_message
+        self.order_id = order_id
+        self.filled_time = filled_time
+        self.filled_amount = filled_amount
+        self.transact_price = transact_price
+        self.slippage = slippage
+        self.commission = commission
 
     def __repr__(self):
         repr_dict = {key: unicode(value) for key, value in self.__dict__.iteritems()}

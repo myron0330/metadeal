@@ -3,6 +3,7 @@
 #     File:
 # **********************************************************************************#
 import uuid
+from .. core.objects import ValueObject
 
 
 class Trade(object):

@@ -20,7 +20,7 @@ from .. trade.order import Order
 from .. trade.trade import MetaTrade
 from .. trade.position import (
     MetaPosition,
-    FuturesPosition
+    LongShortPosition
 )
 
 
@@ -190,7 +190,7 @@ class PositionSchema(ValueObject):
         portfolio_id = item['portfolio_id']
         date = item['date']
         cash = item['cash']
-        position_object = MetaPosition if securities_type == SecuritiesType.SECURITY else FuturesPosition
+        position_object = MetaPosition if securities_type == SecuritiesType.SECURITY else LongShortPosition
         positions = {position['symbol']: position_object.from_query(position) for position in item['positions']}
         pre_portfolio_value = item['pre_portfolio_value']
         portfolio_value = item['portfolio_value']

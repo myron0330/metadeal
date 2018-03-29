@@ -16,7 +16,7 @@ ${attributes}
 """)
 
 
-def generate_class_object(object_name, attribute_dict,
+def generate_class_object(object_name, attributes,
                           template=None, bases=None,
                           with_dump=False, dump_file=None):
     """
@@ -24,7 +24,7 @@ def generate_class_object(object_name, attribute_dict,
 
     Args:
         object_name(string): object name
-        attribute_dict(dict): attribute dict
+        attributes(list or dict): attribute
         template(string): class object template
         bases(string or iterable): object bases
         with_dump(boolean): whether to dump code
@@ -34,9 +34,10 @@ def generate_class_object(object_name, attribute_dict,
         string: code sample
     """
     template = template or VALUE_OBJECT_TEMPLATE
-    slots_list = '\n'.join(["        '{}',".format(_) for _ in attribute_dict])
-    parameters = ', '.join(['{}={}'.format(key, value) for key, value in attribute_dict.iteritems()])
-    attributes = '\n'.join(['        self.{} = {}'.format(_, _) for _ in attribute_dict])
+    attributes = attributes if isinstance(attributes, dict) else {_: None for _ in attributes}
+    slots_list = '\n'.join(["        '{}',".format(_) for _ in attributes])
+    parameters = ', '.join(['{}={}'.format(key, value) for key, value in attributes.iteritems()])
+    attributes = '\n'.join(['        self.{} = {}'.format(_, _) for _ in attributes])
     if isinstance(bases, (str, unicode)):
         bases = [bases]
     elif isinstance(bases, (list, tuple, set)):
@@ -87,7 +88,11 @@ if __name__ == '__main__':
         'c': 3,
         'd': None
     }
+    test_attribute_list = ['e', 'f', 'g']
     bases_list = None
     test_code = generate_class_object(test_object_name, test_attribute_dict,
+                                      bases=bases_list, with_dump=True,
+                                      dump_file='test.py')
+    test_code = generate_class_object(test_object_name, test_attribute_list,
                                       bases=bases_list, with_dump=True,
                                       dump_file='test.py')

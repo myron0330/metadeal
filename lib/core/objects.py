@@ -14,6 +14,12 @@ class ValueObject(object):
     def __name__(cls):
         return cls.__name__
 
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
     @classmethod
     def from_dict(cls, kwargs):
         """
