@@ -7,54 +7,24 @@ from copy import copy
 
 import numpy as np
 import pandas as pd
-
-from lib.data.universe_service import UniverseService, Universe
-from .asset_service import AssetType, AssetService
-from ..const import (
-    CONTINUOUS_FUTURES_PATTERN,
-    FUTURES_DAILY_FIELDS,
-    STOCK_ADJ_FIELDS,
-    FUTURES_MINUTE_FIELDS,
-    EQUITY_DAILY_FIELDS,
-    ADJ_FACTOR,
-    EQUITY_MINUTE_FIELDS,
-    INDEX_DAILY_FIELDS,
-    OTC_FUND_FIELDS,
-    TRADE_ESSENTIAL_FIELDS_MINUTE,
-    HS_INDEX_PATTERN,
-    NH_FUTURE_INDEX_PATTERN,
+from utils.dict_utils import CompositeDict
+from utils.error_utils import *
+from utils.datetime_utils import (
+    get_end_date,
+    get_previous_trading_date,
+    get_next_trading_date
 )
-from ..core.enums import AccountType
-from ..data_loader import (
-    load_daily_equity_data,
-    load_intraday_equity_data,
-    load_common_factor_data,
+from . asset_service import AssetType, AssetService
+from .. data.universe_service import UniverseService, Universe
+from .. core.enums import SecuritiesType
+from .. database import (
     load_daily_futures_data,
     load_minute_futures_data,
 )
-from ..data_loader.cache_api import load_minute_bar_map
-from ..data_loader.data_api import FundNavGet, FundDivGet
-from ..data_loader.market_loader import (
-    load_daily_index_data,
-    load_dividend_data,
-    load_allot_data
-)
-from ..utils.adjust_utils import (
-    adj_operator,
-    adj_func_choose,
-    adj_matrix_choose,
-)
-from ..utils.datetime_utils import (
-    previous_trading_day,
-    get_minute_bars,
-    get_end_date,
-    get_next_trading_day
-)
-from ..utils.dict_utils import CompositeDict
-from ..utils.error_utils import *
-from ..utils.factor_utils import (
-    INTERNAL_FIELDS,
-    STOCK_FACTOR_NAME
+from .. const import (
+    CONTINUOUS_FUTURES_PATTERN,
+    HS_INDEX_PATTERN,
+    NH_FUTURE_INDEX_PATTERN,
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
@@ -75,9 +45,6 @@ def _ast_stylish(raw_data_dict, symbols, time_bars, fields, style, rtype='frame'
     Returns:
         dict or frame：将raw_data_dict转化完成后，满足style样式的rtype类型的数据结构
     """
-    if rtype not in ['frame', 'array']:
-        msg = InternalCheckMessage.RTYPE_ERROR.format(rtype)
-        raise InternalCheckError(msg)
     if style == 'ast':
         history_data = {}
         for attribute in fields:
@@ -259,119 +226,6 @@ def _append_data(raw_data, sliced_data, style, rtype='frame'):
     return result
 
 
-def _load_dividends(universe, trading_days):
-    """
-    加载分红数据
-
-    Args:
-        universe(list of string): 股票池
-        trading_days(list of datetime.datetime): 交易日历
-    """
-    raw_data = load_dividend_data(universe, trading_days)
-    normalize_column = ['per_cash_div_af_tax', 'shares_bf_div', 'shares_af_div']
-    raw_data[normalize_column] = raw_data[normalize_column].fillna(0).applymap(float)
-    raw_data['share_ratio'] = raw_data.shares_af_div / raw_data.shares_bf_div
-    result = CompositeDict()
-    records = raw_data.groupby('record_date').groups
-    cash_divs = raw_data.groupby('pay_cash_date').groups
-    ex_divs = raw_data.groupby('ex_div_date').groups
-
-    for date, group in records.iteritems():
-        date = pd.to_datetime(date)
-        temp_data = raw_data.iloc[group][['security_id', 'pay_cash_date', 'ex_div_date']].as_matrix().tolist()
-        result['div_record'][date.strftime('%Y-%m-%d')] = \
-            dict(map(lambda x: x[:1] + [max(filter(lambda y: y, x[1:]))], temp_data))
-    result['cash_div'] = \
-        {pd.to_datetime(date).strftime('%Y-%m-%d'): dict(
-            raw_data.fillna(0).iloc[group][['security_id', 'per_cash_div_af_tax']].as_matrix())
-         for date, group in cash_divs.iteritems()}
-    result['share_div'] = \
-        {pd.to_datetime(date).strftime('%Y-%m-%d'): dict(raw_data.fillna(1).iloc[group][['security_id', 'share_ratio']].as_matrix())
-         for date, group in ex_divs.iteritems()}
-    return result
-
-
-def _load_allots(universe, trading_days):
-    """
-    加载配股数据
-
-    Args:
-        universe(list of string): 股票池
-        trading_days(list of datetime.datetime): 交易日历
-    """
-    raw_data = load_allot_data(universe, trading_days)
-    result = CompositeDict()
-    records = raw_data.groupby('record_date').groups
-    ex_divs = raw_data.groupby('list_date').groups
-
-    for date, group in records.iteritems():
-        date = pd.to_datetime(date)
-        temp_data = raw_data.iloc[group][['security_id', 'list_date', 'ex_rights_date']].as_matrix().tolist()
-        result['allot_record'][date.strftime('%Y-%m-%d')] = \
-            dict(map(lambda x: x[:1] + [max(filter(lambda y: y, x[1:]))], temp_data))
-    result['share_allot'] = \
-        {pd.to_datetime(date).strftime('%Y-%m-%d'):
-         dict(raw_data.fillna(0).iloc[group][['security_id', 'allotment_ratio']].as_matrix())
-         for date, group in ex_divs.iteritems()}
-    result['price_allot'] = \
-        {pd.to_datetime(date).strftime('%Y-%m-%d'):
-         dict(raw_data.fillna(0).iloc[group][['security_id', 'allotment_price']].as_matrix())
-         for date, group in ex_divs.iteritems()}
-    return result
-
-
-def _load_fund_dividends(universe, trading_days):
-    """
-    加载基金分红数据
-
-    Args:
-        universe(list of string): 股票池
-        trading_days(list of datetime.datetime): 交易日历
-    """
-    fields = ['secID', 'effectDate', 'reinvestDate', 'dividendAfTax']
-    raw_data = FundDivGet(secID=universe, adjustedType="D", beginDate=trading_days[0], endDate=trading_days[-1],
-                          field=fields, pandas="1")[fields]
-    raw_data['reinvAcctDate'] = raw_data.reinvestDate.apply(lambda date: get_next_trading_day(date, trading_days) if \
-                                                                   date != trading_days[-1] else np.NAN)
-    result = CompositeDict()
-    records = raw_data.groupby('effectDate').groups
-    cash_divs = raw_data.groupby('reinvAcctDate').groups
-
-    for date, group in records.iteritems():
-        date = pd.to_datetime(date)
-        temp_data = raw_data.iloc[group][['secID', 'effectDate', 'reinvAcctDate']].as_matrix().tolist()
-        result['div_record'][date.strftime('%Y-%m-%d')] = \
-            dict(map(lambda x: x[:1] + [max(filter(lambda y: y, x[1:]))], temp_data))
-    result['div_rate'] = \
-        {pd.to_datetime(date).strftime('%Y-%m-%d'): dict(
-            raw_data.fillna(0).iloc[group][['secID', 'dividendAfTax']].as_matrix())
-         for date, group in cash_divs.iteritems()}
-    return result
-
-
-def _intraday_equity_loader_extend(universe, trading_days, fields=EQUITY_MINUTE_FIELDS, freq='m'):
-    minute_data = load_intraday_equity_data(universe, trading_days, EQUITY_MINUTE_FIELDS, freq=freq)
-    if MULTI_FREQ_PATTERN.match(freq):
-        interval = int(MULTI_FREQ_PATTERN.match(freq).group(1))
-    else:
-        interval = 1
-    if 'tradeDate' in fields:
-        tds = [np.array(241 * [td]) for td in minute_data['closePrice'].index]
-        minute_data['tradeDate'] = pd.DataFrame({stk: tds for stk in minute_data['closePrice'].columns},
-                                                index=minute_data['closePrice'].index)
-    if 'tradeTime' in fields:
-        minutes = get_minute_bars()[::interval]
-        ttimes = [np.array([td + ' ' + m for m in minutes]) for td in minute_data['closePrice'].index]
-        minute_data['tradeTime'] = pd.DataFrame({stk: ttimes for stk in minute_data['closePrice'].columns},
-                                                index=minute_data['closePrice'].index)
-    if 'barTime' in fields:
-        minute_bars = np.array(get_minute_bars()[::interval])
-        minutes = [minute_bars] * len(minute_data['closePrice'].index)
-        minute_data['barTime'] = pd.DataFrame({stk: minutes for stk in minute_data['closePrice'].columns},
-                                              index=minute_data['closePrice'].index)
-    return minute_data
-
-
 _EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD = EQUITY_MINUTE_FIELDS + ['barTime', 'tradeTime']
 
 
@@ -451,36 +305,15 @@ class MarketService(object):
         Returns:
             MarketService
         """
-        stock_factors = stock_factors or list()
         mkt_service = market_service or MarketService()
         mkt_service.asset_service = asset_service
         mkt_service.universe_service = universe_service
         mkt_service.calendar_service = calendar_service
-        stock_universe = asset_service.filter_symbols(asset_type=AssetType.STOCK,
-                                                      symbols=universe_service.full_universe)
-        if len(stock_universe) > 0:
-            mkt_service.stock_market_data = StockMarketData(stock_universe, stock_factors)
-            mkt_service.market_data_list.append(mkt_service.stock_market_data)
         futures_universe = asset_service.filter_symbols(asset_type=AssetType.FUTURES,
                                                         symbols=universe_service.full_universe)
         if len(futures_universe) > 0:
             mkt_service.futures_market_data = FuturesMarketData(futures_universe)
             mkt_service.market_data_list.append(mkt_service.futures_market_data)
-        index_universe = asset_service.filter_symbols(asset_type=AssetType.INDEX,
-                                                      symbols=universe_service.full_universe)
-        if len(index_universe) > 0:
-            mkt_service.index_market_data = IndexMarketData(index_universe)
-            mkt_service.market_data_list.append(mkt_service.index_market_data)
-        fund_universe = asset_service.filter_symbols(asset_type=AssetType.EXCHANGE_FUND,
-                                                     symbols=universe_service.full_universe)
-        if len(fund_universe) > 0:
-            mkt_service.fund_market_data = FundMarketData(fund_universe)
-            mkt_service.market_data_list.append(mkt_service.fund_market_data)
-        otc_fund_universe = asset_service.filter_symbols(asset_type=AssetType.OTC_FUND,
-                                                         symbols=universe_service.full_universe)
-        if len(otc_fund_universe) > 0:
-            mkt_service.otc_fund_market_data = OTCFundMarketData(otc_fund_universe)
-            mkt_service.market_data_list.append(mkt_service.otc_fund_market_data)
         return mkt_service
 
     @staticmethod
@@ -524,7 +357,7 @@ class MarketService(object):
             MarketService(obj): market service
         """
         stock_factors = stock_factors or list()
-        prev_trading_day = previous_trading_day(get_end_date().today())
+        prev_trading_day = get_previous_trading_date(get_end_date().today())
         if universe_service is None:
             if isinstance(universe, Universe):
                 pass
@@ -613,64 +446,6 @@ class MarketService(object):
         current_minute_bar_map = load_minute_bar_map(normalized_trading_days, self.universe_service.full_universe)
         self.minute_bar_map.update(current_minute_bar_map)
 
-    def prepare_daily_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_FIELDS_MINUTE):
-        """
-        准备分钟线cache数据
-
-        Args:
-            symbols(list): symbol list
-            end_date(string): end date
-            time_range(int): time range
-            fields(list): field list
-        """
-        daily_cache_data = {e: {} for e in ['tas', 'sat', 'ast']}
-        for market_data in self.market_data_list:
-            selected_universe = self.asset_service.filter_symbols(asset_type=market_data.asset_type, symbols=symbols)
-            selected_universe = list(selected_universe)
-            if not len(selected_universe):
-                continue
-            ast_array, time_bars = market_data.slice(selected_universe, fields, end_date, freq='d',
-                                                     time_range=time_range, rtype='array',
-                                                     cached_trading_days=self.calendar_service.cache_all_trading_days,
-                                                     no_stylish=True)
-            adj_data_dict, time_bars = \
-                market_data.adjust(ast_array, selected_universe, time_bars, f_adj=None, s_adj='pre_adj', freq='d')
-            for k, cache_item in daily_cache_data.iteritems():
-                raw_data_dict = ast_array if k == 'tas' else adj_data_dict
-                daily_cache_data[k] = \
-                    _append_data(cache_item, _ast_stylish(raw_data_dict, selected_universe, time_bars,
-                                                          fields, k, rtype='array'), k, rtype='array')
-        return daily_cache_data
-
-    def prepare_minute_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_FIELDS_MINUTE):
-        """
-        准备分钟线cache数据
-
-        Args:
-            symbols(list): symbol list
-            end_date(string): end date
-            time_range(int): time range
-            fields(list): field list
-        """
-        minute_cache_data = {e: {} for e in ['tas', 'sat', 'ast']}
-        for market_data in self.market_data_list:
-            selected_universe = self.asset_service.filter_symbols(asset_type=market_data.asset_type, symbols=symbols)
-            selected_universe = list(selected_universe)
-            if not len(selected_universe):
-                continue
-            ast_array, time_bars = market_data.slice(selected_universe, fields, end_date, freq='m',
-                                                     time_range=time_range, rtype='array',
-                                                     cached_trading_days=self.calendar_service.cache_all_trading_days,
-                                                     no_stylish=True)
-            adj_data_dict, time_bars = \
-                market_data.adjust(ast_array, selected_universe, time_bars, f_adj=None, s_adj='pre_adj', freq='m')
-            for k, cache_item in minute_cache_data.iteritems():
-                raw_data_dict = ast_array if k == 'tas' else adj_data_dict
-                minute_cache_data[k] = \
-                    _append_data(cache_item, _ast_stylish(raw_data_dict, selected_universe, time_bars,
-                                                          fields, k, rtype='array'), k, rtype='array')
-        return minute_cache_data
-
     def available_fields(self, freq='d'):
         """
         返回日行情或分钟行情可获取attribute
@@ -699,14 +474,8 @@ class MarketService(object):
         Args:
             account_type(string): account type
         """
-        if account_type == AccountType.security:
-            return self.stock_market_data
-        elif account_type == AccountType.futures:
+        if account_type == SecuritiesType.futures:
             return self.futures_market_data
-        elif account_type == AccountType.index:
-            return self.index_market_data
-        elif account_type == AccountType.otc_fund:
-            return self.otc_fund_market_data
 
 
 class MarketData(object):
@@ -1074,346 +843,3 @@ class FuturesMarketData(MarketData):
             return '{} {}'.format(prev_trading_day, minute_bar)
         else:
             return '{} {}'.format(clearing_date, minute_bar)
-
-
-class FundMarketData(MarketData):
-    """
-    MarketService中加载交易所基金行情的单元
-    """
-
-    def __init__(self, fund_universe):
-        """
-        Parameters
-        ----------
-        fund_universe: set of fund symbol, 如：set(['511010.XSHG', '150195.XSHE'])
-        """
-
-        super(FundMarketData, self).__init__(fund_universe, EQUITY_DAILY_FIELDS, _EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD,
-                                             self._daily_data_loader, self._minute_data_loader,
-                                             asset_type=AssetType.FUND, cache_expand_minute_bars=False)
-
-    def adjust(self, raw_data_dict, symbols, time_bars, s_adj=None, freq='d', **kwargs):
-        """
-
-        Args:
-            raw_data_dict(dict): original data
-            symbols(list): symbol list
-            time_bars(list): time_bar list
-            s_adj(string): type of f_adj
-            freq(string): frequency
-            **kwargs: key-value parameters
-        """
-        if s_adj is None:
-            return raw_data_dict, time_bars
-        if ADJ_FACTOR not in raw_data_dict:
-            stock_adj_factor = self.daily_bars[ADJ_FACTOR]
-            start_index = bisect.bisect_left(stock_adj_factor.index, time_bars[0])
-            end_index = bisect.bisect_right(stock_adj_factor.index, time_bars[-1])
-            symbol_index = [stock_adj_factor.columns.get_loc(symbol) for symbol in symbols]
-            adj_data = stock_adj_factor.as_matrix()[start_index:end_index, symbol_index]
-        else:
-            adj_data = raw_data_dict[ADJ_FACTOR]
-        # todo. need to check out the result here: whether or not adapt to dynamic pre_adj.
-        # adj_data = adj_data / adj_data[-1, :]
-
-        def _adjust_bars(raw_data, adjusted_factor_data):
-            """
-            Adjust bars.
-
-            Args:
-                raw_data(dict): raw data
-                adjusted_factor_data(matrix): adjusted data
-            """
-            raw_data = copy(raw_data)
-            func = (lambda x: np.round(x, 3)) if freq == 'd' else np.frompyfunc((lambda x: np.round(x, 3)), 1, 1)
-            for field in STOCK_ADJ_FIELDS:
-                if field in raw_data:
-                    if field == 'turnoverVol':
-                        raw_data[field] = func(raw_data[field] / adjusted_factor_data)
-                    else:
-                        raw_data[field] = func(raw_data[field] * adjusted_factor_data)
-            return raw_data
-
-        data = _adjust_bars(raw_data_dict, adjusted_factor_data=adj_data)
-        return data, time_bars
-
-    @staticmethod
-    def _daily_data_loader(universe, trading_days, fields=EQUITY_DAILY_FIELDS):
-        """
-        StockMarketData的日行情加载方法
-        """
-        daily_data = load_daily_equity_data(universe, trading_days, fields)
-        return daily_data
-
-    @staticmethod
-    def _minute_data_loader(universe, trading_days, fields=EQUITY_MINUTE_FIELDS, freq='m'):
-        """
-        StockMarketData的分钟线行情加载方法
-        """
-        minute_data = _intraday_equity_loader_extend(universe, trading_days, fields, freq=freq)
-        return minute_data
-
-
-class OTCFundMarketData(MarketData):
-
-    fields_mapping = {
-        'nav': 'NAV',
-        'accumNav': 'ACCUM_NAV',
-        'adjustNav': 'ADJUST_NAV'
-    }
-
-    def __init__(self, otc_fund_universe):
-        super(OTCFundMarketData, self).__init__(otc_fund_universe, OTC_FUND_FIELDS, None, self._daily_data_loader,
-                                                self._minute_data_loader, daily_bars_check_field='nav',
-                                                minute_bars_check_field=None, asset_type=AssetType.OTC_FUND)
-
-    def _daily_data_loader(self, universe, trading_days, fields=OTC_FUND_FIELDS):
-        adjust_universe = map(lambda x: x.split(".")[0], universe)
-        sec_id_str = ','.join(adjust_universe)
-        field = ['secID', 'endDate'] + map(lambda x: self.fields_mapping[x], OTC_FUND_FIELDS)
-        fund_navs = FundNavGet(ticker=sec_id_str,
-                               beginDate=trading_days[0].strftime("%Y%m%d"),
-                               endDate=trading_days[-1].strftime("%Y%m%d"),
-                               field=field)
-        data_all = {}
-        if fund_navs.endDate.drop_duplicates().shape[0] == len(trading_days):
-            for var in fields:
-                var_data = fund_navs[['secID', 'endDate', self.fields_mapping[var]]].pivot(
-                    index='endDate', columns='secID', values=self.fields_mapping[var].upper())
-                var_data = var_data.rename(columns={secID: "{}.OFCN".format(secID.split(".")[0])
-                                                    for secID in var_data.columns if secID.split(".")[-1] != "OFCN"})
-                data_all.update({var: var_data})
-        else:
-            # 场外基金回测时，剔除定期报告中的净值
-            str_trading_days = map(lambda date: date.strftime("%Y-%m-%d"), trading_days)
-            for var in fields:
-                var_data = fund_navs[['secID', 'endDate', self.fields_mapping[var]]].pivot(
-                    index='endDate', columns='secID', values=self.fields_mapping[var].upper())
-                var_data = var_data.loc[str_trading_days, :]
-                var_data = var_data.rename(columns={secID: "{}.OFCN".format(secID.split(".")[0])
-                                                    for secID in var_data.columns if secID.split(".")[-1] != "OFCN"})
-                data_all.update({var: var_data})
-        return data_all
-
-    @staticmethod
-    def _minute_data_loader(universe, trading_days):
-        # do nothing
-        return None
-
-    def _load_dividends(self, trading_days):
-        """
-        加载分红数据
-
-        Args:
-            trading_days(list of datetime.datetime): 交易日历
-        """
-        self.dividends = _load_fund_dividends(universe=self.universe, trading_days=trading_days)
-
-
-class IndexMarketData(MarketData):
-    """
-    MarketService中加载指数行情的单元
-    """
-
-    def __init__(self, index_universe):
-        """
-        Parameters
-        ----------
-        index_universe: set of index symbol, 如：set(['000016.ZICN', '000905.ZICN'])
-        """
-        self._hs_index = set([e for e in index_universe if HS_INDEX_PATTERN.match(e)])
-        self._nh_index = set([i for i in index_universe if NH_FUTURE_INDEX_PATTERN.match(i)])
-        # _other_index含包含银行间及国外的一些非沪深交易所指数
-        self._other_index = index_universe - self._hs_index - self._nh_index
-        super(IndexMarketData, self).__init__(index_universe, INDEX_DAILY_FIELDS,
-                                              _EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD, self._daily_index_loader,
-                                              _intraday_equity_loader_extend, asset_type=AssetType.INDEX,
-                                              cache_expand_minute_bars=False)
-
-    @staticmethod
-    def _daily_index_loader(universe, trading_days, fields=INDEX_DAILY_FIELDS):
-        api_data = load_daily_index_data(universe, trading_days, fields)
-        return api_data
-
-
-# def _adjust_security_daily_data(daily_data, fq_factor_field=STOCK_ADJ_FACTOR):
-#     """
-#     Args:
-#         daily_data(dict): daily data
-#         fq_factor_field(string): fq_factor_field
-#     """
-#     adj_factor_matrix = daily_data[fq_factor_field].as_matrix()
-#     index = daily_data[fq_factor_field].index
-#     columns = daily_data[fq_factor_field].columns
-#     daily_data = copy(daily_data)
-#     for var in STOCK_ADJ_FIELDS:
-#         if var in daily_data:
-#             if var == 'turnoverVol':
-#                 daily_data[var] = pd.DataFrame(
-#                     np.round(daily_data[var].as_matrix() / adj_factor_matrix, 3),
-#                     index=index, columns=columns).fillna(0.0)
-#             else:
-#                 daily_data[var] = pd.DataFrame(
-#                     data=np.round(daily_data[var].as_matrix() * adj_factor_matrix, 3),
-#                     index=index, columns=columns)
-#     return daily_data
-#
-#
-# def _adjust_security_minute_data(daily_data, minute_data, fq_factor_field=STOCK_ADJ_FACTOR):
-#     """
-#     Args:
-#         daily_data(dict): daily data
-#         minute_data(dict): minute data
-#         fq_factor_field(string): fq_factor_field
-#
-#     Returns:
-#
-#     """
-#     i_start = daily_data[fq_factor_field].index.get_loc(minute_data['closePrice'].index[0])
-#     i_end = daily_data[fq_factor_field].index.get_loc(minute_data['closePrice'].index[-1]) + 1
-#     adj_factor_matrix = daily_data[fq_factor_field].as_matrix()
-#     index = daily_data[fq_factor_field].index[i_start: i_end]
-#     columns = daily_data[fq_factor_field].columns
-#     minute_data = copy(minute_data)
-#     for var in STOCK_ADJ_FIELDS:
-#         if var == 'preClosePrice':
-#             continue
-#         minute_data[var] = pd.DataFrame(adj_factor_matrix[i_start:i_end, :] * minute_data[var].as_matrix(),
-#                                         index=index, columns=columns)
-#     minute_data['turnoverVol'] = pd.DataFrame(minute_data['turnoverVol'] / adj_factor_matrix[i_start:i_end, :],
-#                                               index=index, columns=columns)
-#     return minute_data
-
-
-class StockMarketData(MarketData):
-    """
-    MarketService中加载股票行情、因子数据的单元。
-
-    Attributes:
-        * daily_bars(dict of DataFrame): 含各个daily_fields的日行情, ast格式
-        * daily_fields(list of str): 日行情需加载的完整字段
-        * factors(list of str): 因子列表，fq_factor除外
-        * minute_bars(dict of DataFrame): 含各个daily_fields的分钟行情, ast格式
-        * minute_fields(list of str): 分钟线行情需加载的完整字段
-        * universe(set of symbol): MarketService中股票类型组成的universe
-    """
-
-    def __init__(self, stock_universe, stock_factors=list(), minute_with_trade_dates=True):
-        """
-        Args:
-            stock_universe: set of stock symbol, 如：set(['601328.XSHG', '000559.XSHE'])
-            stock_factors(list of str): StockMarketData加入的特有因子(如['PB', "ROE'])，默认无
-            adj(boolean): 是否根据fq_factor调整，默认True
-            minute_with_trade_dates(boolean): 获取的数据中是否包含'barTime'和'tradeTime'
-        """
-        daily_fields = EQUITY_DAILY_FIELDS + list(stock_factors)
-        self._minute_with_trade_dates_fields = minute_with_trade_dates
-        minute_fields = EQUITY_MINUTE_FIELDS
-        if self._minute_with_trade_dates_fields:
-            minute_fields = _EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD
-        MarketData.__init__(self, stock_universe, daily_fields, minute_fields, self._daily_data_loader,
-                            self._minute_data_loader, asset_type=AssetType.STOCK, cache_expand_minute_bars=False)
-        self.factors = stock_factors
-
-    def set_factors(self, factors, basic_daily_fields=None):
-        """
-        设置StockMarketData的特有因子self.factors及self.daily_fields, 将原本的equity_daily_fields加上传入的factor。
-
-        Args:
-            factors: list of 因子，如通联因子
-            basic_daily_fields(list): basic daily fields
-
-        Returns:
-            list of fields
-        """
-        self.factors = factors
-        if basic_daily_fields is None:
-            self.daily_fields = EQUITY_DAILY_FIELDS + list(factors)
-        else:
-            self.daily_fields = \
-                list(set([ADJ_FACTOR, self._daily_bar_check_field] + list(basic_daily_fields) + list(factors)))
-
-    def adjust(self, raw_data_dict, symbols, time_bars, s_adj=None, freq='d', **kwargs):
-        """
-
-        Args:
-            raw_data_dict(dict): original data
-            symbols(list): symbol list
-            time_bars(list): time_bar list
-            s_adj(string): type of f_adj
-            freq(string): frequency
-            **kwargs: key-value parameters
-        """
-        if s_adj is None:
-            return raw_data_dict, time_bars
-        if ADJ_FACTOR not in raw_data_dict:
-            stock_adj_factor = self.daily_bars[ADJ_FACTOR]
-            start_index = bisect.bisect_left(stock_adj_factor.index, time_bars[0])
-            end_index = bisect.bisect_right(stock_adj_factor.index, time_bars[-1])
-            symbol_index = [stock_adj_factor.columns.get_loc(symbol) for symbol in symbols]
-            adj_data = stock_adj_factor.as_matrix()[start_index:end_index, symbol_index]
-        else:
-            adj_data = raw_data_dict[ADJ_FACTOR]
-        # todo. need to check out the result here: whether or not adapt to dynamic pre_adj.
-        # adj_data = adj_data / adj_data[-1, :]
-
-        def _adjust_bars(raw_data, adjusted_factor_data):
-            """
-            Adjust bars.
-
-            Args:
-                raw_data(dict): raw data
-                adjusted_factor_data(matrix): adjusted data
-            """
-            raw_data = copy(raw_data)
-            func = (lambda x: np.round(x, 3)) if freq == 'd' else np.frompyfunc((lambda x: np.round(x, 3)), 1, 1)
-            for field in STOCK_ADJ_FIELDS:
-                if field in raw_data:
-                    if field == 'turnoverVol':
-                        raw_data[field] = func(raw_data[field] / adjusted_factor_data)
-                    else:
-                        raw_data[field] = func(raw_data[field] * adjusted_factor_data)
-            return raw_data
-
-        data = _adjust_bars(raw_data_dict, adjusted_factor_data=adj_data)
-        return data, time_bars
-
-    def _daily_data_loader(self, universe, trading_days, fields=EQUITY_DAILY_FIELDS):
-        """
-        StockMarketData的日行情加载方法
-        """
-        daily_bars = load_daily_equity_data(universe, trading_days,  list(set(fields) - set(self.factors)))
-        if len(self.factors) > 0:
-            factor_data = load_common_factor_data(universe, trading_days, self.factors)
-            daily_bars.update(factor_data)
-        return daily_bars
-
-    @staticmethod
-    def _minute_data_loader(universe, trading_days, fields=EQUITY_MINUTE_FIELDS, freq='m') :
-        """
-        StockMarketData的分钟线行情加载方法
-        """
-        minute_data = _intraday_equity_loader_extend(universe, trading_days, fields, freq=freq)
-        return minute_data
-
-    def _load_dividends(self, trading_days):
-        """
-        加载分红数据
-
-        Args:
-            trading_days(list of datetime.datetime): 交易日历
-        """
-        self.dividends = _load_dividends(universe=self.universe, trading_days=trading_days)
-
-    def _load_allots(self, trading_days):
-        """
-        加载配股数据
-
-        Args:
-            trading_days(list of datetime.datetime): 交易日历
-        """
-        self.allots = _load_allots(universe=self.universe, trading_days=trading_days)
-
-    def clear_data(self):
-        self.daily_bars = {}
-        self.minute_bars = {}

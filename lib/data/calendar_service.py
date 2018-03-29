@@ -8,8 +8,7 @@ from utils.datetime_utils import (
     get_end_date
 )
 from .. const import (
-    MAX_DAILY_HISTORY_WINDOW,
-    STOCK_EARLIEST_DATE
+    EARLIEST_DATE
 )
 
 
@@ -21,7 +20,7 @@ class CalendarService(ServiceInterface):
         super(CalendarService, self).__init__()
         self.start = start
         self.end = end
-        self.max_daily_window = max_daily_window or MAX_DAILY_HISTORY_WINDOW
+        self.max_daily_window = max_daily_window
         self._trading_days = list()
         self._all_trading_days = []
         self._all_trading_days_index = None
@@ -51,7 +50,7 @@ class CalendarService(ServiceInterface):
             self._all_trading_days = get_trading_days(cache_start_date, end)
         else:
             self._all_trading_days = self._trading_days
-        self._cache_all_trading_days_dt = get_trading_days(STOCK_EARLIEST_DATE.strftime("%Y-%m-%d"),
+        self._cache_all_trading_days_dt = get_trading_days(EARLIEST_DATE.strftime("%Y-%m-%d"),
                                                            get_end_date().strftime("%Y-%m-%d"))
         self._calculate_info()
         return self

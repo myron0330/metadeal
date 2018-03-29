@@ -135,3 +135,10 @@ def timestamp_to_date(timestamp):
         timestamp(int or float): timestamp
     """
     return time.strftime('%Y%m%d', time.localtime(timestamp / 1000))
+
+
+def get_end_date():
+    """
+    End date.
+    """
+    return normalize_date(datetime.today())

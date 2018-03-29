@@ -3,10 +3,10 @@
 #     File: BaseAccount FILE
 # **********************************************************************************#
 from abc import ABCMeta
+from utils.error_utils import Errors
+from utils.dict_utils import CompositeDict
 from .. context.parameters import SimulationParameters
 from .. trade.order import OrderState
-from .. utils.error_utils import Errors
-from .. utils.dict_utils import CompositeDict
 
 
 class BaseAccount(object):
