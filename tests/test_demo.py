@@ -7,17 +7,16 @@ from lib.trading import trading
 from lib.core.clock import clock
 
 DEFAULT_STRATEGY = """
-universe = ['RBM0', 'RB1610']  # 希望订阅的货币对行情数据
+universe = ['RBM0', 'RB1810']  # 希望订阅的货币对行情数据
 freq = 'tick'
 refresh_rate = 1                           # 执行handle_data的时间间隔
 
 accounts = {
-    'account1': AccountConfig(account_type='futures', account_id='2593e2135e80435eba6661f5301c8e8c'),
+    'account1': AccountConfig(account_type='futures'),
 }
 
 def initialize(context):                   # 初始化策略运行环境
     context.counter = 0
-    pass
 
 
 def handle_data(context):                  # 核心策略逻辑
@@ -31,7 +30,7 @@ def handle_data(context):                  # 核心策略逻辑
     print account.get_position('BTC')
     print account.get_position('TEST')
     if context.counter == 0:
-        order_id = account.order('ETH|BTC.XDAEX', amount=0.01, order_type='limit', price=0.1)
+        order_id = account.order('RB1810', amount=0.01, order_type='limit', price=0.1)
         print 'order_id: {}'.format(order_id)
         context.counter += 1
     # account.cancel_order(order_id)
@@ -45,7 +44,7 @@ def on_tick(context, tick):
     print tick
     account = context.get_account('account1')
     if context.counter == 1:
-        order_id = account.order('ETH|BTC.XDAEX', amount=-0.01, order_type='limit', price=0.1)
+        order_id = account.order('RB1810', amount=-0.01, order_type='limit', price=0.1)
         print 'order_id: {}'.format(order_id)
         context.counter += 1
     print '\\n'
