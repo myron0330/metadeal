@@ -3,12 +3,12 @@
 #     File: PMS gateway file
 #   Author: Myron
 # **********************************************************************************#
-from configs import logger
-from . import BasePMSGateway
-from .. utils.dict_utils import (
+from utils.dict_utils import (
     DefaultDict,
     CompositeDict
 )
+from . base_gateway import BasePMSGateway
+from .. configs import logger
 from .. trade import (
     OrderState,
     OrderStateMessage

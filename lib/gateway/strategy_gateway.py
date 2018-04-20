@@ -4,9 +4,9 @@
 # **********************************************************************************#
 import requests
 import traceback
-from configs import *
+from utils.decorator_utils import mutex_lock
 from . base_gateway import BaseStrategyGateway
-from .. utils.decorator_utils import mutex_lock
+from .. configs import *
 
 
 class StrategyGateway(BaseStrategyGateway):

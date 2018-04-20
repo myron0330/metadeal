@@ -8,8 +8,8 @@ import logging.config
 
 
 current_path = os.path.dirname(__file__)
-log_path = '{}/etc/log.cfg'.format(current_path)
-app_path = '{}/etc/service.cfg'.format(current_path)
+log_path = '{}/../etc/log.cfg'.format(current_path)
+app_path = '{}/../etc/service.cfg'.format(current_path)
 config = ConfigParser.RawConfigParser()
 config.read(app_path)
 

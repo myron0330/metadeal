@@ -72,6 +72,32 @@ def get_direct_trading_day(date, step, forward):
     return target_trading_days[target_index]
 
 
+def load_daily_futures_data(*args, **kwargs):
+    """
+    Load daily futures data.
+    Args:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
+    pass
+
+
+def load_minute_futures_data(*args, **kwargs):
+    """
+
+    Args:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
+    pass
+
+
 if __name__ == '__main__':
     print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
     print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)

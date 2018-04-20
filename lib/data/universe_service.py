@@ -192,21 +192,6 @@ class UniverseService(object):
     def full_universe(self):
         return list(self.view(with_benchmark=True, with_init_universe=True))
 
-    def get_factor_table_from_universe(self):
-        factor_names = self.universe.composites.recursive(
-            formula=(lambda x, y: x | y),
-            formatter=(lambda x: UniverseFilter.get_ftree_all_factors(
-                dict(x.obj.builder).get(BuilderType.APPLY_FILTER, [UniverseFilter('')])[0])))
-        result = dict()
-        for factor_name in factor_names:
-            if not factor_name or factor_name in result:
-                continue
-            mapper = dict()
-            mapper['dependencies'] = {'A': factor_name}
-            mapper['formula'] = 'A'
-            result[factor_name] = mapper
-        return result
-
 
 class BuilderType(object):
 

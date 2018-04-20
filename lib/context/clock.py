@@ -7,7 +7,8 @@ from utils.datetime_utils import (
     get_previous_trading_date, get_current_date,
     get_current_minute, get_previous_minute,
     get_next_trading_date, get_previous_date, get_next_date,
-    get_upcoming_trading_date, get_latest_trading_date
+    get_upcoming_trading_date, get_latest_trading_date,
+    get_trading_days
 )
 from utils.decorator_utils import singleton
 

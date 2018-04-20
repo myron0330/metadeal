@@ -2,8 +2,8 @@
 # **********************************************************************************#
 #     File: Trader.
 # **********************************************************************************#
-from configs import *
 from utils.decorator_utils import singleton
+from . configs import *
 
 uwsgi_tag = False
 try:

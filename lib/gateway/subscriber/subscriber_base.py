@@ -2,15 +2,10 @@
 # **********************************************************************************#
 #     File: Market base file.
 # **********************************************************************************#
-import requests
 import logging
+import requests
 import requests.packages.urllib3
-from configs import (
-    position_url,
-    order_url,
-    trade_url
-)
-from quartz.core.objects import ValueObject
+from lib.core.objects import ValueObject
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
@@ -221,49 +216,49 @@ class TradeData(ValueObject):
         return cls(**{key: item[mapper[key]] for key in cls.__slots__})
 
 
-def fetch_position_from_pms(account_id):
-    """
-    Fetch position from pms.
-
-    Args:
-        account_id(string): account id
-    """
-    params = {'accountId': account_id}
-    rsp = requests.get(position_url, params=params)
-    return rsp.status_code, rsp.json()
-
-
-def fetch_trade_from_pms(account_id, order_id):
-    """
-    Fetch trade from pms.
-
-    Args:
-        account_id(string): account id
-        order_id(string): order id
-    """
-    params = {'accountId': account_id, "extOrdId": order_id}
-    rsp = requests.get(trade_url, params=params)
-    return rsp.status_code, rsp.json()
-
-
-def fetch_order_from_pms(account_id, order_id):
-    """
-    Fetch order from pms.
-
-    Args:
-        account_id(string): account id
-        order_id(string): order id
-    """
-    params = {'accountId': account_id, "extOrdId": order_id}
-    rsp = requests.get(order_url, params=params)
-    return rsp.status_code, rsp.json()
-
+# def fetch_position_from_pms(account_id):
+#     """
+#     Fetch position from pms.
+#
+#     Args:
+#         account_id(string): account id
+#     """
+#     params = {'accountId': account_id}
+#     rsp = requests.get(position_url, params=params)
+#     return rsp.status_code, rsp.json()
+#
+#
+# def fetch_trade_from_pms(account_id, order_id):
+#     """
+#     Fetch trade from pms.
+#
+#     Args:
+#         account_id(string): account id
+#         order_id(string): order id
+#     """
+#     params = {'accountId': account_id, "extOrdId": order_id}
+#     rsp = requests.get(trade_url, params=params)
+#     return rsp.status_code, rsp.json()
+#
+#
+# def fetch_order_from_pms(account_id, order_id):
+#     """
+#     Fetch order from pms.
+#
+#     Args:
+#         account_id(string): account id
+#         order_id(string): order id
+#     """
+#     params = {'accountId': account_id, "extOrdId": order_id}
+#     rsp = requests.get(order_url, params=params)
+#     return rsp.status_code, rsp.json()
+#
 
 __all__ = [
     'TickData',
     'OrderBookData',
     'TradeData',
-    'fetch_position_from_pms',
-    'fetch_order_from_pms',
-    'fetch_trade_from_pms'
+    # 'fetch_position_from_pms',
+    # 'fetch_order_from_pms',
+    # 'fetch_trade_from_pms'
 ]

@@ -4,7 +4,7 @@
 # **********************************************************************************#
 import json
 import redis
-from configs import redis_host, redis_port
+from .. configs import redis_host, redis_port
 
 
 class RedisQueue(object):

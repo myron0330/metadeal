@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
-from . market_base import *
+from . subscriber_base import *
 from . subscriber_gateway import SubscriberGateway
 
 

@@ -2,24 +2,13 @@
 # **********************************************************************************#
 #     File: Subscriber gateway.
 # **********************************************************************************#
-from web.market.market import *
-from quartz.gateway import BaseSubscriberGateway
-from quartz.event.event_base import EventType
-from quartz.trade import DigitalCurrencyTrade
-from . position_subscriber import PositionSubscriber
-from . trade_subscriber import TradesSubscriber
+from lib.event.event_base import EventType
+from .. base_gateway import BaseSubscriberGateway
 
 
 class MarketType(object):
 
-    GDAX_TICK = 'GDAX_TICK'
-    GDAX_ORDER_BOOK = 'GDAX_ORDER_BOOK'
-
-
-market_type_map = {
-    'GDAX_TICK': GDAXTicker,
-    'GDAX_ORDER_BOOK': GDAXLevel
-}
+    FUTURES = 'futures'
 
 
 class SubscriberGateway(BaseSubscriberGateway):
@@ -50,16 +39,7 @@ class SubscriberGateway(BaseSubscriberGateway):
             sim_params(obj): sim parameters
             event_engine(obj): event engine
         """
-        account_ids = {config.account_id for _, config in sim_params.accounts.iteritems()}
-        position_subscriber_pool = dict()
-        trade_subscriber_pool = dict()
-        for account_id in account_ids:
-            position_subscriber_pool[account_id] = PositionSubscriber(account_id)
-            trade_subscriber_pool[account_id] = TradesSubscriber(account_id, event_engine=event_engine)
-        return cls(account_ids=sim_params,
-                   position_subscriber_pool=position_subscriber_pool,
-                   trade_subscriber_pool=trade_subscriber_pool,
-                   event_engine=event_engine)
+        raise NotImplementedError
 
     @classmethod
     def fetch_market_quote(cls, market_type):

@@ -2,15 +2,15 @@
 # **********************************************************************************#
 #     File:　Data portal engine.
 # **********************************************************************************#
-from configs import logger
-from . base_service import ServiceInterface
-from . market_service import MarketService
 from . asset_service import (
     AssetService,
     AssetType
 )
+from . base_service import ServiceInterface
 from . calendar_service import CalendarService
+from . market_service import MarketService
 from . universe_service import UniverseService
+from .. configs import logger
 
 
 class DataPortal(ServiceInterface):

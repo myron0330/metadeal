@@ -2,9 +2,8 @@
 # **********************************************************************************#
 #     File: error utils
 # **********************************************************************************#
+import logging
 import traceback
-from configs import logger
-
 
 error = (lambda code, message: {'code': code, 'database': message})
 
@@ -13,7 +12,7 @@ def _logging_exception():
     """
     Logging exception
     """
-    logger.error(traceback.format_exc())
+    logging.error(traceback.format_exc())
 
 
 def take_care_of_exception(func):

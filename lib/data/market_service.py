@@ -17,7 +17,7 @@ from utils.datetime_utils import (
 from . asset_service import AssetType, AssetService
 from .. data.universe_service import UniverseService, Universe
 from .. core.enums import SecuritiesType
-from .. database import (
+from .. database.database_api import (
     load_daily_futures_data,
     load_minute_futures_data,
 )
@@ -73,8 +73,7 @@ def _ast_stylish(raw_data_dict, symbols, time_bars, fields, style, rtype='frame'
     else:
         # raise ValueError('Exception in "MarketService._ast_stylish": '
         #                  'history style \'%s\' is not supported here, please refer to document for details' % style)
-        msg = InternalCheckMessage.MARKET_DATA_STYLE_ERROR.format(style)
-        raise InternalCheckError(msg)
+        raise Exception()
     return history_data
 
 
@@ -225,8 +224,6 @@ def _append_data(raw_data, sliced_data, style, rtype='frame'):
             result[tdays] = t_data
     return result
 
-
-_EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD = EQUITY_MINUTE_FIELDS + ['barTime', 'tradeTime']
 
 
 class MarketService(object):
@@ -613,15 +610,8 @@ class MarketData(object):
         check_attribute = self._daily_bar_check_field if freq == 'd' else self._minute_bars_check_field
         if freq == 'd':
             data = self.daily_bars
-            custom_factors = list(set(fields) - set(INTERNAL_FIELDS))
-            if custom_factors:
-                self._load_factor_bars(custom_factors)
-                data.update(self.factor_bars)
         elif freq == 'm':
             data = self.minute_bars
-        elif MULTI_FREQ_PATTERN.match(freq):
-            data = self._minute_bars_loader(trading_days=prepare_dates, universe=self.universe,
-                                            freq=freq, fields=_EQUITY_MINUTE_TRADE_ESSENTIAL_TO_LOAD)
         else:
             raise AttributeError('Exception in "MarketData.slice": unknown data slice query')
         raw_data_dict, time_bars = _ast_slice(data, symbols, end_time_str=end_time_str, fields=fields,

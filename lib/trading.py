@@ -89,10 +89,8 @@ def _strategy_from_code(strategy_code):
     """
     # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
     # 将当前环境中的local变量注入到globals中，用于执行code策略
-    from api import (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
-                     Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
-    assert (Commission, Slippage, DynamicUniverse, set_universe, OrderState, OrderStatus,
-            Factor, StockScreener, AccountConfig, log, Weekly, Monthly)
+    from api import (Commission, Slippage, OrderState, AccountConfig)
+    assert (Commission, Slippage, OrderState, AccountConfig)
     exec strategy_code in locals()
     strategy = TradingStrategy(**locals())
     return strategy, locals()

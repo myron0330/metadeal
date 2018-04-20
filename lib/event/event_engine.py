@@ -4,8 +4,8 @@
 # **********************************************************************************#
 from queue import Queue, Empty
 from threading import Thread
+from utils.dict_utils import DefaultDict
 from . event_base import Event, EventType
-from .. utils.dict_utils import DefaultDict
 
 
 class EventEngine(object):

@@ -1,5 +1,5 @@
 from pymongo import MongoClient, UpdateOne
-from configs import (
+from .. configs import (
     mongodb_url,
     mongodb_db_name,
     mongodb_authenticate,
