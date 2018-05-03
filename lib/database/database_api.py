@@ -110,15 +110,16 @@ def get_futures_base_info(symbols):
         'ticker': 'symbol'
     }
     data.rename(columns=rename_dict, inplace=True)
+    data.symbol = data.symbol.apply(lambda x: x.upper())
     return data
 
 
-def get_futures_main_contract(symbols=None, trading_days=None, start=None, end=None):
+def get_futures_main_contract(contract_objects=None, trading_days=None, start=None, end=None):
     """
     Get futures main contract
 
     Args:
-        symbols(list): continuous symbols
+        contract_objects(list): continuous symbols
         trading_days(list): trading days
         start(string or datetime.datetime): start date
         end(string or datetime.datetime): end date
@@ -128,7 +129,7 @@ def get_futures_main_contract(symbols=None, trading_days=None, start=None, end=N
     data = DataAPI.MktMFutdGet(mainCon=1, startDate=start, endDate=end, pandas="1")
     data.ticker = data.ticker.apply(lambda x: x.upper())
     frame = data.pivot(index='tradeDate', columns='contractObject', values='ticker')
-    return frame[symbols]
+    return frame[contract_objects]
 
 
 if __name__ == '__main__':
@@ -137,4 +138,4 @@ if __name__ == '__main__':
     print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
     print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
     print get_futures_base_info(['RB1810'])
-    print get_futures_main_contract(symbols=['RB', 'AG'], start='20180401', end='20180502')
+    print get_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')

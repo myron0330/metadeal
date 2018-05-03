@@ -44,8 +44,6 @@ class DataPortal(ServiceInterface):
         benchmark = sim_params.major_benchmark
         disable_service = disable_service or list()
         self.calendar_service.batch_load_data(start, end)
-        start = self.calendar_service.trading_days[0]
-        end = self.calendar_service.trading_days[-1]
         trading_days = self.calendar_service.trading_days
         if 'universe_service' not in disable_service:
             self.universe_service.batch_load_data(universe=universe,
@@ -57,13 +55,12 @@ class DataPortal(ServiceInterface):
                 self.universe_service.full_universe_set |= set(config.position_base)
         full_universe = self.universe_service.full_universe
         if 'asset_service' not in disable_service:
-            self.asset_service.batch_load_data(start, end, full_universe,
-                                               expand_continuous_future=True)
+            self.asset_service.batch_load_data(full_universe, expand_continuous_future=True)
             expanded_base_futures = self.asset_service.filter_symbols(AssetType.BASE_FUTURES)
             self.universe_service.full_universe_set |= set(expanded_base_futures)
         self.universe_service.rebuild_universe()
         if 'market_service' not in disable_service:
-            self.market_service.batch_load_data(self.calendar_service.all_trading_days[0], end, full_universe,
+            self.market_service.batch_load_data(full_universe,
                                                 calendar_service=self.calendar_service,
                                                 asset_service=self.asset_service,
                                                 universe_service=self.universe_service)

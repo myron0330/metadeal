@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from . asset_service import AssetService, AssetInfo, AssetType, get_future_code
+from . asset_service import AssetService, AssetInfo, AssetType, get_future_contract_object
 from . calendar_service import CalendarService
 
 
@@ -8,5 +8,5 @@ __all__ = [
     'AssetService',
     'CalendarService',
     'AssetType',
-    'get_future_code',
+    'get_future_contract_object',
 ]

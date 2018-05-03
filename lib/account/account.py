@@ -11,7 +11,7 @@ from . import (
 from .. core.enums import SecuritiesType
 from .. data import (
     AssetType,
-    get_future_code
+    get_future_contract_object
 )
 from .. trade import (
     Commission,
@@ -245,17 +245,17 @@ class AccountManager(object):
                 if isinstance(commission, dict):
                     if isinstance(commission.values()[0], tuple):
                         if len(commission.values()[0]) == 2:
-                            normalized_commission = {get_future_code(symbol): Commission(
+                            normalized_commission = {get_future_contract_object(symbol): Commission(
                                 commission[symbol][0], commission[symbol][0], commission[symbol][1])
                                 for symbol in commission.iterkeys()}
                         elif len(commission.values()[0]) == 3:
-                            normalized_commission = {get_future_code(symbol): Commission(
+                            normalized_commission = {get_future_contract_object(symbol): Commission(
                                 commission[symbol][0], commission[symbol][1], commission[symbol][2])
                                 for symbol in commission.iterkeys()}
                         else:
                             raise Errors.INVALID_COMMISSION
                 else:
-                    normalized_commission = {get_future_code(symbol): commission for symbol in full_universe}
+                    normalized_commission = {get_future_contract_object(symbol): commission for symbol in full_universe}
                 return normalized_commission
 
             universe_set = data_portal.universe_service.full_universe
@@ -298,7 +298,7 @@ class AccountManager(object):
                     dict: normalized margin_rate.
                 """
                 normalized_margin_rate = margin_rate if isinstance(margin_rate, dict) else \
-                    {get_future_code(symbol): margin_rate for symbol in full_universe}
+                    {get_future_contract_object(symbol): margin_rate for symbol in full_universe}
                 return normalized_margin_rate
 
             universe_set = data_portal.universe_service.full_universe

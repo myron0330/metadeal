@@ -225,7 +225,6 @@ def _append_data(raw_data, sliced_data, style, rtype='frame'):
     return result
 
 
-
 class MarketService(object):
     """
     行情数据服务类
@@ -251,7 +250,7 @@ class MarketService(object):
         self._available_daily_fields = None
         self._available_minute_fields = None
 
-    def batch_load_data(self, start, end, universe=None,
+    def batch_load_data(self, universe=None,
                         calendar_service=None,
                         universe_service=None,
                         asset_service=None,
@@ -259,8 +258,6 @@ class MarketService(object):
         """
         Batch load market data.
         Args:
-            start(datetime.datetime): start datetime
-            end(datetime.datetime): end datetime
             universe(list of universe): universe list
             calendar_service(obj): calendar service
             universe_service(obj): universe service
@@ -270,7 +267,7 @@ class MarketService(object):
         Returns:
             MarketService(obj): market service
         """
-        self.create_with(universe, start_date=start, end_date=end,
+        self.create_with(universe,
                          market_service=self,
                          universe_service=universe_service,
                          asset_service=asset_service,
@@ -314,28 +311,10 @@ class MarketService(object):
         return mkt_service
 
     @staticmethod
-    def create_with_simulation_parameters(sim_params, factors=[]):
-        """
-        使用sim_params当中参数创建MarketService
-
-        Args:
-            sim_params(SimulationParameter): 策略模拟参数
-            factors(list of str): 需要用到的股票因子
-
-        Returns:
-            MarketService
-        """
-        universe_service = UniverseService(sim_params.universe, sim_params.trading_days,
-                                           benchmarks=sim_params.benchmarks,
-                                           init_universe_list=sim_params.security_base.keys())
-        universe_service.batch_load_data(sim_params.universe, sim_params.trading_days, sim_params.major_benchmark)
-        asset_service = AssetService.init_with_symbols(universe_service.full_universe,
-                                                       start_date=sim_params.start, end_date=sim_params.end)
-        return MarketService.create_with_service(asset_service, universe_service, factors)
-
-    @staticmethod
-    def create_with(universe='A', stock_factors=None, start_date=None, end_date=None,
-                    market_service=None, asset_service=None, universe_service=None,
+    def create_with(universe='A', stock_factors=None,
+                    market_service=None,
+                    asset_service=None,
+                    universe_service=None,
                     calendar_service=None):
         """
         使用universe创建MarketService
@@ -343,8 +322,6 @@ class MarketService(object):
         Args:
             universe(list of str or str): MarketService中需要包含的股票池
             stock_factors(list of str): 因子列表
-            start_date(datetime.datetime): 用于扩展universe时确认股票池具体列表时的开始时间
-            end_date(datetime.datetime): 用于扩展universe时确认股票池具体列表时的结束时间
             market_service(obj): market service
             asset_service(obj): asset service
             universe_service(obj): universe service
@@ -364,9 +341,7 @@ class MarketService(object):
                 universe = Universe(universe)
             universe_service = UniverseService(universe, [prev_trading_day])
         asset_service = \
-            asset_service or AssetService.init_with_symbols(universe_service.full_universe,
-                                                            start_date=start_date,
-                                                            end_date=end_date)
+            asset_service or AssetService.from_symbols(universe_service.full_universe)
         return MarketService.create_with_service(asset_service=asset_service, universe_service=universe_service,
                                                  stock_factors=stock_factors, market_service=market_service,
                                                  calendar_service=calendar_service)
