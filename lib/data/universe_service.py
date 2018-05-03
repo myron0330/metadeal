@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-import re
 import datetime
-import operator
 from copy import copy
 from collections import deque, defaultdict
+from utils.linked_list_utils import (
+    LinkedList, Node
+)
+from utils.error_utils import Errors
 from . calendar_service import CalendarService
-from .. core.pattern import *
 
 
 def is_collection(item):
@@ -24,9 +25,8 @@ class UniverseService(object):
     """
     Universe service.
     """
-    # todo: update doc string
 
-    def __init__(self, universe=None, trading_days=None, benchmarks=[], init_universe_list=[]):
+    def __init__(self, universe=None, trading_days=None, benchmarks=list(), init_universe_list=list()):
         self.universe = universe
         self.trading_days = trading_days
         self.benchmarks = set(benchmarks) if is_collection(benchmarks) else {benchmarks}
@@ -63,6 +63,8 @@ class UniverseService(object):
         calendar_service = kwargs.get('calendar_service')
         if not calendar_service:
             self.calendar_service = CalendarService().batch_load_data(start, end)
+        composite_target_symbols = self.universe.composites.recursive(
+            formula=(lambda x, y: x | y), formatter=(lambda x: set(x.obj.symbol_collection)))
         target_statics = composite_target_symbols - set(self.symbol_collection_dict)
         composite_static_collection = self.universe.composites.recursive(
             formula=(lambda x, y: x | y), formatter=(lambda x: x.obj.static_collection))
@@ -229,7 +231,7 @@ class Universe(object):
     def __init__(self, *target_symbols, **kwargs):
         self.trading_days = list()
         self.builder = deque()
-        self.composites = SingleLinkedList(*[LinkedListNode(self)]*2)
+        self.composites = LinkedList(*[Node(self)]*2)
         self._dynamic_universe = {}
         self.symbol_collection = set(target_symbols)
         static_universe = kwargs.get('static_universe')
@@ -253,11 +255,8 @@ class Universe(object):
         elif isinstance(other, Universe):
             pass
         else:
-            raise BacktestInputError('Exception in "Universe": invalid addend type! Addend must be '
-                                     'some Universe instance or tuple or list.')
+            raise Exception
         new_universe = Universe()
-        # new_universe._univ_composite = (Universe.NODE_ADD, (self, other))
-        # new_universe._symbol_collection = self._symbol_collection | other._symbol_collection
         new_universe.composites = self.composites + other.composites
         return new_universe
 
@@ -278,18 +277,6 @@ class Universe(object):
 
     def exchange(self, formula):
         self.builder.append((BuilderType.EXCHANGE, formula))
-        return self
-
-    def industry(self, formula):
-        # if isinstance(formula, basestring):
-        #     formula = [formula]
-        # elif isinstance(formula, IndBase):
-        #     formula = ['0'+str(formula.ind_code)]
-        if isinstance(formula, IndBase):
-            formula = [formula]
-        elif not isinstance(formula, list):
-            raise Errors.INVALID_INDUSTRY_INPUT
-        self.builder.append((BuilderType.INDUSTRY, formula))
         return self
 
     def exclude_list(self, formula):
@@ -336,12 +323,8 @@ class Universe(object):
             return
         self.trading_days = trading_days
         self.composites.traversal(func=dispatch_trading_days, trading_days=trading_days)
-
-        if not from_subset_data:
-            raise UniverseError(Errors.INVALID_SUBSET_DATA)
         self._load_from_subset(from_subset_data)
         self.composites.traversal(func=dispatch_symbol_data, data=self.symbol_data)
-
         self.composites.traversal(func=dispatch_auxiliary_data, head=self)
 
     def build(self):
@@ -358,20 +341,6 @@ class Universe(object):
         self.full_universe = self.composites.recursive(formula=(lambda x, y: operate_or(x, y)),
                                                        formatter=(lambda x: x.obj.full_universe))
         head = self.composites.link_head.obj
-        if head.builder and head.builder[-1][0] == BuilderType.APPLY_SORT:
-            formula = head.builder[-1][1]
-            assert isinstance(formula, UniverseFilter)
-            # previous_trading_day_map = dict()
-            # for i, date in enumerate(self.trading_days):
-            #     previous_trading_day_map[date] = self._get_direct_trading_day(date, 1, False).strftime('%y-%m-%d')
-
-            weighted_dynamic = formula.load_data(self.cached_factor_data, self._previous_trading_day_map,
-                                                 self.dynamic_universe)
-            weighted_ranked = {k: map(lambda x: x[0], sorted(v.items(), key=operator.itemgetter(1), reverse=True))
-                               for k, v in weighted_dynamic.iteritems()}
-            self.dynamic_universe_ranked = weighted_ranked
-        else:
-            self.dynamic_universe_ranked = self.dynamic_universe
 
     def _expand_custom_universe(self, custom_universe):
         """
@@ -421,40 +390,9 @@ class Universe(object):
                 if formula is True:
                     self.dynamic_universe = operate_minus(target_a=self.dynamic_universe, target_b=self.untradable_dict)
                     self.static_universe = operate_minus(target_a=self.static_universe, target_b=self.untradable_dict)
-            # elif builder_type == BuilderType.IS_NEW:
-            #     self.new_stock_aging = formula[1]
-            #     self.new_dict = self._generate_new_stock_dict(self.trading_days, new_stock_aging=self.new_stock_aging)
-            #     if formula[0] is True:
-            #         self.dynamic_universe = operate_and(target_a=self.dynamic_universe, target_b=self.new_dict)
-            #         self.static_universe = operate_and(target_a=self.static_universe, target_b=self.new_dict)
-            #     else:
-            #         self.dynamic_universe = operate_minus(target_a=self.dynamic_universe, target_b=self.new_dict)
-            #         self.static_universe = operate_minus(target_a=self.static_universe, target_b=self.new_dict)
-            elif builder_type == BuilderType.EXCHANGE:
-                if formula in ['XSHG', 'XSHE']:
-                    end_letter = 'G' if formula == 'XSHG' else 'E'
-                    filter_endswith(self.dynamic_universe, end_letter)
-                    filter_endswith(self.static_universe, end_letter)
-                # elif formula in ['XZCE', 'XDCE', 'XSGE', 'CCFX']:
-                #     pass
-                # elif formula in ['OFCN']:
-                #     pass
-                else:
-                    raise Errors.INVALID_EXCHANGE
-            elif builder_type == BuilderType.INDUSTRY:
-                industries = set(formula) & set(self.industry_dict)
-                if industries:
-                    industries_universe = {e: set() for e in self.trading_days}
-                    for ind in industries:
-                        industries_universe = operate_or(industries_universe, self.industry_dict[ind])
-                    self.dynamic_universe = operate_and(self.dynamic_universe, industries_universe)
-                    self.static_universe = operate_and(self.static_universe, industries_universe)
-                else:
-                    raise Errors.INVALID_INDUSTRY
         self.full_universe = set()
         for dynamic_universe in self.dynamic_universe.itervalues():
             self.full_universe |= dynamic_universe
-
 
 
 def dispatch_symbol_data(node, data):

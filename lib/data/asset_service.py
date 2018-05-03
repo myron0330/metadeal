@@ -4,7 +4,7 @@ import logging
 import datetime
 import pandas as pd
 from utils.error_utils import Errors
-from utils.decorator_utils import singleton
+from utils.datetime_utils import normalize_date
 from . base_service import ServiceInterface
 from .. trade.cost import Commission, Slippage
 from .. core.pattern import (
@@ -302,7 +302,6 @@ class DigitalCurrencyAssetInfo(AssetInfo):
             self.symbol, _encoding_string(self.name), self.exchange, _str_date(self.list_date))
 
 
-@singleton
 class AssetService(ServiceInterface):
 
     """

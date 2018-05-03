@@ -1,17 +1,10 @@
 # -*- coding: UTF-8 -*-
 # **********************************************************************************#
-#     File: A realization of bi-side linked list
+#     File: Data structure utils
 # **********************************************************************************#
 
 
 def recursive(formula, formatter=(lambda x: None)):
-    """
-    Decorator for doing recursive formula.
-
-    Args:
-        formula: iterative formula function
-        formatter: return value format in each iteration
-    """
     def decorator(func):
         def _recursive(node, *args, **kwargs):
             if node.tail:
@@ -24,13 +17,26 @@ def recursive(formula, formatter=(lambda x: None)):
     return decorator
 
 
-def traversal(returnable=True):
-    """
-    Decorator for traversal the linked list for doing some operation.
+def forward(formula, formatter=(lambda x: None)):
 
-    Args:
-        returnable(boolean): whether to return the result.
-    """
+    def decorator(func):
+
+        def _forward(node, *args, **kwargs):
+            result = func(node, *args, **kwargs) if node else None
+            while node:
+                tail_node = node.tail
+                if node.tail:
+                    result = formula(result, formatter(tail_node))
+                node = tail_node
+            return result
+
+        return _forward
+
+    return decorator
+
+
+def traversal(returnable=True):
+
     def decorator(func):
         def _traversal(node, *args, **kwargs):
             while node:
@@ -48,9 +54,6 @@ def traversal(returnable=True):
 
 
 class Node(object):
-    """
-    Node
-    """
     def __init__(self, obj, head=None, tail=None):
         self.head = head
         self.tail = tail
@@ -62,9 +65,7 @@ class Node(object):
 
 
 class LinkedList(object):
-    """
-    Linked list
-    """
+
     def __init__(self, link_head=None, link_tail=None):
         self.link_head = link_head
         self.link_tail = link_tail
@@ -111,6 +112,14 @@ class LinkedList(object):
 
         return executor(self.link_head)
 
+    def forward(self, formula, formatter):
+
+        @forward(formula, formatter)
+        def executor(node):
+            return formatter(node)
+
+        return executor(self.link_head)
+
     def traversal(self, func, *args, **kwargs):
 
         @traversal(returnable=True)
@@ -122,4 +131,23 @@ class LinkedList(object):
     def get_length(self):
         if not self.link_head:
             return 0
+        return self.forward(formula=(lambda x, y: x + y), formatter=(lambda x: 1))
+
+    def get_length_by_recursive(self):
+        if not self.link_head:
+            return 0
         return self.recursive(formula=(lambda x, y: x + y), formatter=(lambda x: 1))
+
+
+if __name__ == '__main__':
+    a = Node('000001.XSHE')
+    b = Node('600000.XSHG')
+    c = Node('000002.XSHE')
+    d = Node('IFM0')
+    e = Node('IHM0')
+    link = LinkedList()
+    link.extend([a, b, c, d, e])
+    print link.get_length_by_recursive(), link.get_length()
+    recursive_value = link.recursive(formula=(lambda x, y: x | y), formatter=(lambda x: {x.obj}))
+    forward_value = link.forward(formula=(lambda x, y: x | y), formatter=(lambda x: {x.obj}))
+    print recursive_value == forward_value

@@ -82,17 +82,8 @@ __all__ = [
 
 if __name__ == '__main__':
     test_object_name = 'TestObject'
-    test_attribute_dict = {
-        'a': 1,
-        'b': 2,
-        'c': 3,
-        'd': None
-    }
-    test_attribute_list = ['e', 'f', 'g']
-    bases_list = None
-    test_code = generate_class_object(test_object_name, test_attribute_dict,
-                                      bases=bases_list, with_dump=True,
-                                      dump_file='test.py')
+    test_attribute_list = ['a', 'b', 'c']
+    bases_list = 'ValueObject'
     test_code = generate_class_object(test_object_name, test_attribute_list,
                                       bases=bases_list, with_dump=True,
                                       dump_file='test.py')
