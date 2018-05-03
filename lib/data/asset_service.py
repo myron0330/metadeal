@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import DataAPI
 import logging
 import datetime
 import pandas as pd
@@ -159,11 +160,11 @@ class AssetInfo(ValueObject):
             bool
 
         """
-        if self.list_date is not None and end is not None and (self.list_date >= end if exclude_list_date
-                                                               else self.list_date > end):
+        if self.list_date is not None and end is not None and \
+                (self.list_date >= end if exclude_list_date else self.list_date > end):
             return False
-        if self.last_date is not None and start is not None and (self.last_date <= start if exclude_last_date
-                                                                  else self.last_date < start):
+        if self.last_date is not None and start is not None and \
+                (self.last_date <= start if exclude_last_date else self.last_date < start):
             return False
         return True
 
@@ -290,8 +291,8 @@ class FuturesAssetInfo(AssetInfo):
             tuple: (up limit price, down limit price)
         """
         trading_day = date.strftime('%Y%m%d')
-        df = MktFutLimitGet(ticker=self.symbol, beginDate=trading_day, endDate=trading_day,
-                            field=['limitUpPrice', 'limitDownPrice'])
+        df = DataAPI.MktFutLimitGet(ticker=self.symbol, beginDate=trading_day, endDate=trading_day,
+                                    field=['limitUpPrice', 'limitDownPrice'])
         if df.shape[0] == 0:
             err_msg = "Future limit price not found at: "+trading_day
             logging.error(err_msg)
@@ -629,7 +630,8 @@ class AssetService(ServiceInterface):
         Args:
             symbols(iterable): symbols
         """
-        if isinstance(symbols, basestring): symbols = symbols.split(',')
+        if isinstance(symbols, basestring):
+            symbols = symbols.split(',')
         if not symbols:
             return []
         objects = map(get_future_contract_object, symbols)
