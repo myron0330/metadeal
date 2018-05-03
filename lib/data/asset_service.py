@@ -511,7 +511,7 @@ class AssetService(ServiceInterface):
         """
         result = list()
         if subset is 'all' or isinstance(subset, (list, set)) and len(subset) > 50:
-            futures_asset_data_raw = get_futures_base_info(None)
+            futures_asset_data_raw = get_futures_base_info()
         elif subset is not None and 0 < len(subset) <= 50:
             futures_asset_data_raw = get_futures_base_info(subset)
         else:

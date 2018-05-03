@@ -98,14 +98,17 @@ def load_minute_futures_data(*args, **kwargs):
     pass
 
 
-def get_futures_base_info(symbols):
+def get_futures_base_info(symbols=None):
     """
     Get futures base info.
 
     Args:
         symbols(list): basic future symbols
     """
-    data = DataAPI.FutuGet(ticker=symbols)
+    if symbols:
+        data = DataAPI.FutuGet(ticker=symbols)
+    else:
+        data = DataAPI.FutuGet()
     rename_dict = {
         'ticker': 'symbol'
     }
@@ -129,7 +132,9 @@ def get_futures_main_contract(contract_objects=None, trading_days=None, start=No
     data = DataAPI.MktMFutdGet(mainCon=1, startDate=start, endDate=end, pandas="1")
     data.ticker = data.ticker.apply(lambda x: x.upper())
     frame = data.pivot(index='tradeDate', columns='contractObject', values='ticker')
-    return frame[contract_objects]
+    if contract_objects:
+        return frame[contract_objects]
+    return frame
 
 
 if __name__ == '__main__':
