@@ -193,6 +193,8 @@ class Errors(object):
     SAVE_FATAL_MESSAGE_ERROR = LogException(error(500, '[LogException] "FATAL" message save failed.'))
     SAVE_OTHER_MESSAGE_ERROR = LogException(error(500, '[LogException] Message save failed.'))
 
+    INVALID_OPERATOR_INPUT = TradingInputException(error(500, '[TradingException] Universe operator input is invalid.'))
+
     @classmethod
     def enumerates(cls):
         return [value for attr, value in cls.__dict__.iteritems()]

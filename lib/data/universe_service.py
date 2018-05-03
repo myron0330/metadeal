@@ -85,8 +85,11 @@ class UniverseService(object):
 
     def rebuild_universe(self, cached_factor_data=None):
         assert isinstance(self.universe, Universe)
-        previous_trading_day_map = {e: self.calendar_service._previous_trading_day_map[e].strftime('%Y-%m-%d')
-                                    for e in self.trading_days}
+        previous_trading_day_map = \
+            {
+                trading_day: self.calendar_service.previous_trading_day_map[trading_day].strftime('%Y-%m-%d')
+                for trading_day in self.trading_days
+            }
         data = {
             'all_static_universe': self.universe.static_collection,
             'symbol_collection_dict': self.symbol_collection_dict,

@@ -60,11 +60,11 @@ def get_direct_trading_day(date, step, forward):
 
     Returns:
     """
-    if step > 10:
+    if step > 50:
         raise Exception('step can only be less than 20.')
     date = _normalize_date(date)
-    start_date = date - timedelta(30)
-    end_date = date + timedelta(30)
+    start_date = date - timedelta(100)
+    end_date = date + timedelta(100)
     target_trading_days = DataAPI.get_trading_days(start=start_date,
                                                    end=end_date)
     date_index = bisect.bisect_left(target_trading_days, date)

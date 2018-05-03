@@ -8,7 +8,8 @@ from utils.datetime_utils import (
     get_end_date
 )
 from .. const import (
-    EARLIEST_DATE
+    EARLIEST_DATE,
+    DEFAULT_KEYWORDS
 )
 
 
@@ -28,13 +29,15 @@ class CalendarService(ServiceInterface):
         self._cache_all_trading_days = None
         self._cache_all_trading_days_dt = None
 
-    def batch_load_data(self, start, end, universe=None, **kwargs):
+    def batch_load_data(self, start, end, universe=None,
+                        max_history_window=DEFAULT_KEYWORDS['max_history_window'][0], **kwargs):
         """
         Batch load calendar data.
         Args:
             start(datetime.datetime): start datetime
             end(datetime.datetime): end datetime
             universe(list of universe): universe list
+            max_history_window(int): max history window in daily
             **kwargs: key-value parameters
 
         Returns:
@@ -42,11 +45,10 @@ class CalendarService(ServiceInterface):
         """
         self.start = start
         self.end = end
-        max_daily_window = kwargs.get('max_daily_window') or self.max_daily_window
-        self.max_daily_window = max_daily_window
+        self.max_daily_window = max_history_window
         self._trading_days = get_trading_days(start, end)
-        if max_daily_window is not None:
-            cache_start_date = get_direct_trading_day(start, max_daily_window, forward=False)
+        if max_history_window is not None:
+            cache_start_date = get_direct_trading_day(start, max_history_window, forward=False)
             self._all_trading_days = get_trading_days(cache_start_date, end)
         else:
             self._all_trading_days = self._trading_days
@@ -61,11 +63,6 @@ class CalendarService(ServiceInterface):
         """
         return self
 
-    def _calculate_info(self):
-        self._all_trading_days_index = dict(zip(self._all_trading_days, range(len(self._all_trading_days))))
-        self._cache_all_trading_days = map(lambda x: x.strftime("%Y-%m-%d"), self._cache_all_trading_days_dt)
-        self._previous_trading_day_map = dict(zip(self._all_trading_days[1:], self._all_trading_days[:-1]))
-
     @property
     def all_trading_days(self):
         """
@@ -79,6 +76,13 @@ class CalendarService(ServiceInterface):
         获取当前日历信息中包含的所有交易日（不包含max_history_window预先获取的交易日）
         """
         return self._trading_days
+
+    @property
+    def previous_trading_day_map(self):
+        """
+        Previous trading day map
+        """
+        return self._previous_trading_day_map
 
     def get_direct_trading_day_list(self, date, step, forward=True):
         """
@@ -160,3 +164,8 @@ class CalendarService(ServiceInterface):
         start_index = date_idx + (step if forward else -step)
         index = min(max(start_index, 0), len(tds) - 1)
         return tds[index]
+
+    def _calculate_info(self):
+        self._all_trading_days_index = dict(zip(self._all_trading_days, range(len(self._all_trading_days))))
+        self._cache_all_trading_days = map(lambda x: x.strftime("%Y-%m-%d"), self._cache_all_trading_days_dt)
+        self._previous_trading_day_map = dict(zip(self._all_trading_days[1:], self._all_trading_days[:-1]))

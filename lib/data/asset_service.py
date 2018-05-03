@@ -397,9 +397,6 @@ class AssetService(ServiceInterface):
         self.symbol_dictionary = {}
         self.symbol_type_table = {}
         self.all_symbols = set()
-        self.artificial_begin_date = None
-        self.artificial_end_date = None
-        self._artificial_switch_info = None
 
     @classmethod
     def from_symbols(cls, symbols, expand_continuous_future=False):

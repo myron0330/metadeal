@@ -110,7 +110,7 @@ def trading(strategy_code, config=None, **kwargs):
     sim_params = _parse_sim_params(config, local_variables)
     clock = Clock(sim_params.freq)
     data_portal = DataPortal()
-    data_portal.batch_load_data(sim_params, disable_service=['market_service'])
+    data_portal.batch_load_data(sim_params)
     event_engine = EventEngine()
     strategy_gateway = StrategyGateway()
     subscriber_gateway = SubscriberGateway.from_config(sim_params=sim_params, event_engine=event_engine)

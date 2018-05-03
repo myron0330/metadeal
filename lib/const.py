@@ -24,8 +24,6 @@ DEFAULT_KEYWORDS = {
     'initialize': (lambda x: None),
     'handle_data': (lambda x: None),
     'post_trading_day': (lambda x: None),
-    'security_base': dict(),
-    'security_cost': dict(),
     'refresh_rate': 1,
     'freq': 'd',
     'max_history_window': (30, 241),
