@@ -112,3 +112,37 @@ class BaseSubscriberGateway(object):
         Subscribe trade.
         """
         raise NotImplementedError
+
+
+class BaseTradingGateway(object):
+    """
+    Base Trading gateway interface.
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, gateway_name='Trading_Gateway'):
+        self.gateway_name = gateway_name
+
+    def start(self):
+        """
+        Start
+        """
+        raise NotImplementedError
+
+    def stop(self):
+        """
+        Stop
+        """
+        raise NotImplementedError
+
+    def on_bar(self, *args, **kwargs):
+        """
+        On bar response
+        """
+        raise NotImplementedError
+
+    def on_portfolio(self, *args, **kwargs):
+        """
+        On portfolio response
+        """
+        raise NotImplementedError

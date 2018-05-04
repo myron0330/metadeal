@@ -65,3 +65,8 @@ NH_FUTURE_INDEX_PATTERN = re.compile(SYMBOL_PATTERN_NH_FUTURE_INDEX)
 FUND_PATTERN = re.compile(SYMBOL_PATTERN_FUND)
 XZCE_FUTURES_PATTERN = re.compile('([A-Z]{2})(\d{3})$')
 OPTION_PATTERN = re.compile(SYMBOL_PATTERN_OPTION)
+
+FUTURES_DAILY_FIELDS = ['tradeDate', 'openPrice', 'highPrice', 'lowPrice', 'closePrice', 'settlementPrice',
+                        'volume', 'openInterest', 'preSettlementPrice', 'turnoverVol', 'turnoverValue']
+FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'highPrice', 'lowPrice',
+                         'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue']

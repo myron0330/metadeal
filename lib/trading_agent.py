@@ -2,20 +2,18 @@
 # **********************************************************************************#
 #     File: Trading Engine file
 # **********************************************************************************#
-import requests
-import traceback
 from copy import copy
 from datetime import datetime
 from . trading_base import *
 from . event.event_base import EventType
-from . gateway.trading_gateway import PaperTradingGateway
-from .. context.context import Context
-from .. context.parameters import SimulationParameters
-from .. data.asset_service import AssetType
+from . gateway.trading_gateway import TradingGateway
+from . context.context import Context
+from . context.parameters import SimulationParameters
+from . data.asset_service import AssetType
 from .. utils.datetime_utils import get_direct_trading_day
 
 
-class PaperTradingAgent(PaperTradingGateway):
+class TradingEngine(TradingGateway):
     """
     交易调度引擎
     """
@@ -27,7 +25,7 @@ class PaperTradingAgent(PaperTradingGateway):
                  sub_portfolio_info=None,
                  pms_host=None, pms_headers=None,
                  log=None, debug=False, event_engine=None):
-        super(PaperTradingAgent, self).__init__()
+        super(TradingEngine, self).__init__()
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
         self.sim_params = sim_params
@@ -67,10 +65,6 @@ class PaperTradingAgent(PaperTradingGateway):
                               calendar_service=calendar_service,
                               market_roller=market_roller,
                               account_manager=account_manager)
-        if context.signal_flag():
-            if not set(context.signal_generator.field) <= set(market_service.stock_market_data.factors):
-                market_service.stock_market_data.clear_data()
-            market_service.stock_market_data.set_factors(context.signal_generator.field)
         return cls(clock, sim_params, strategy, data_portal, context, account_manager,
                    pms_lite, broker_client, report_client, market_roller,
                    trading_scheduler, sub_portfolio_info=sub_portfolio_info,
@@ -123,7 +117,7 @@ class PaperTradingAgent(PaperTradingGateway):
         """
         Register handlers.
         """
-        for event in EventType.paper_trading_events():
+        for event in EventType.trading_events():
             event_engine.register_handlers(event, getattr(self, event))
 
     def prepare_initialize(self, **kwargs):
@@ -231,25 +225,6 @@ class PaperTradingAgent(PaperTradingGateway):
             'orders': response
         }
         self.event_engine.publish(EventType.event_order_response, **parameters)
-        # pms_order_url = '{}/orders'.format(self.pms_host)
-        # for securities_type, order_list in response.iteritems():
-        #     if order_list:
-        #         request_data = {
-        #             'orders': order_list
-        #         }
-        #         target_order_url = '{}?securities_type={}'.format(pms_order_url, securities_type)
-        #         try:
-        #             requests.post(target_order_url, json=request_data, headers=self.pms_headers)
-        #             self.log.info('#' * 50)
-        #             self.log.info('{}: 下单正常，涉及订单为：')
-        #             for order in order_list:
-        #                 self.log.info(order)
-        #         except:
-        #             self.log.error('#' * 50)
-        #             self.log.error('{}: 下单异常，涉及订单为:'.format(self.clock.now))
-        #             for order in order_list:
-        #                 self.log.error(order)
-        #             self.log.error('{}\n'.format(traceback.format_exc()))
         return response
 
     def _publish_portfolio_info(self):

@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
+import re
 import bisect
 import datetime
-import re
-from collections import OrderedDict, defaultdict
-from copy import copy
-
 import numpy as np
 import pandas as pd
-from utils.dict_utils import CompositeDict
-from utils.error_utils import *
+from collections import OrderedDict, defaultdict
+from copy import copy
 from utils.datetime_utils import (
     get_end_date,
     get_previous_trading_date,
@@ -21,10 +18,11 @@ from .. database.database_api import (
     load_daily_futures_data,
     load_minute_futures_data,
 )
+
 from .. const import (
     CONTINUOUS_FUTURES_PATTERN,
-    HS_INDEX_PATTERN,
-    NH_FUTURE_INDEX_PATTERN,
+    FUTURES_DAILY_FIELDS,
+    FUTURES_MINUTE_FIELDS
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
@@ -281,11 +279,12 @@ class MarketService(object):
         """
         return self
 
-    @staticmethod
-    def create_with_service(asset_service, universe_service,
+    @classmethod
+    def create_with_service(cls,
+                            asset_service=None,
+                            universe_service=None,
                             calendar_service=None,
-                            market_service=None,
-                            stock_factors=None):
+                            market_service=None):
         """
         通过静态方法创建MarketService实例，market_data_list中含asset_service中各类资产的MarketData
 
@@ -294,24 +293,24 @@ class MarketService(object):
             universe_service: UniverseService
             calendar_service: CalendarService
             market_service: MarketService
-            stock_factors: 可传入非equity_daily及fq因子外的其他因子
 
         Returns:
             MarketService
         """
-        mkt_service = market_service or MarketService()
-        mkt_service.asset_service = asset_service
-        mkt_service.universe_service = universe_service
-        mkt_service.calendar_service = calendar_service
+        market_service = market_service or cls()
+        market_service.asset_service = asset_service
+        market_service.universe_service = universe_service
+        market_service.calendar_service = calendar_service
         futures_universe = asset_service.filter_symbols(asset_type=AssetType.FUTURES,
                                                         symbols=universe_service.full_universe)
         if len(futures_universe) > 0:
-            mkt_service.futures_market_data = FuturesMarketData(futures_universe)
-            mkt_service.market_data_list.append(mkt_service.futures_market_data)
-        return mkt_service
+            market_service.futures_market_data = FuturesMarketData(futures_universe)
+            market_service.market_data_list.append(market_service.futures_market_data)
+        return market_service
 
-    @staticmethod
-    def create_with(universe='A', stock_factors=None,
+    @classmethod
+    def create_with(cls,
+                    universe='A',
                     market_service=None,
                     asset_service=None,
                     universe_service=None,
@@ -321,7 +320,6 @@ class MarketService(object):
 
         Args:
             universe(list of str or str): MarketService中需要包含的股票池
-            stock_factors(list of str): 因子列表
             market_service(obj): market service
             asset_service(obj): asset service
             universe_service(obj): universe service
@@ -330,7 +328,6 @@ class MarketService(object):
         Returns:
             MarketService(obj): market service
         """
-        stock_factors = stock_factors or list()
         prev_trading_day = get_previous_trading_date(get_end_date().today())
         if universe_service is None:
             if isinstance(universe, Universe):
@@ -340,11 +337,11 @@ class MarketService(object):
             else:
                 universe = Universe(universe)
             universe_service = UniverseService(universe, [prev_trading_day])
-        asset_service = \
-            asset_service or AssetService.from_symbols(universe_service.full_universe)
-        return MarketService.create_with_service(asset_service=asset_service, universe_service=universe_service,
-                                                 stock_factors=stock_factors, market_service=market_service,
-                                                 calendar_service=calendar_service)
+        asset_service = asset_service or AssetService.from_symbols(universe_service.full_universe)
+        return cls.create_with_service(asset_service=asset_service,
+                                       universe_service=universe_service,
+                                       market_service=market_service,
+                                       calendar_service=calendar_service)
 
     def slice(self, symbols, fields, end_date, freq='d', time_range=1, style='ast', rtype='frame',
               f_adj=None, prepare_dates=None, **options):
@@ -610,9 +607,6 @@ class MarketData(object):
         """
         fields = fields if isinstance(fields, list) else [fields]
         if freq == 'd':
-            if self.asset_type == AssetType.STOCK:
-                return list(set(fields) & set(STOCK_FACTOR_NAME))
-            else:
                 return list(set(fields) & set(self.daily_fields))
         elif freq == 'm' or MULTI_FREQ_PATTERN.match(freq):
             return list(set(fields) & set(self.minute_fields))
@@ -646,26 +640,10 @@ class MarketData(object):
             valid_trading_days = self._daily_bars_loaded_days
         return valid_trading_days[0] <= end_date <= valid_trading_days[-1]
 
-    def _load_factor_bars(self, factors):
-        factors = set(factors) - set(self.factor_bars)
-        if not factors:
-            return
-        trading_days = self._daily_bars_loaded_days
-        factors_df_dict = load_common_factor_data(self.universe, trading_days, list(factors))
-        self.factor_bars.update(factors_df_dict)
-
 
 class FuturesMarketData(MarketData):
     """
-    MarketService中加载期货行情的单元
-
-    Attributes:
-        * daily_bars(dict of DataFrame): 含各个daily_fields的日行情, ast格式
-        * daily_fields(list of str): 日行情需加载的完整字段
-        * minute_bars(dict of DataFrame): 含各个daily_fields的分钟行情, ast格式
-        * minute_fields(list of str): 分钟线行情需加载的完整字段
-        * universe(set of symbol): MarketService中股票类型组成的universe
-        * continuous_fq_factors(dict of dict): 连续合约切换时的价格改变因子
+    Futures market data.
     """
 
     def __init__(self, futures_universe):
@@ -673,10 +651,12 @@ class FuturesMarketData(MarketData):
         Args:
             futures_universe: set of stock symbol, 如：set(['IFM0', 'HCM0'])
         """
-        super(FuturesMarketData, self).__init__(futures_universe, FUTURES_DAILY_FIELDS,
+        super(FuturesMarketData, self).__init__(futures_universe,
+                                                FUTURES_DAILY_FIELDS,
                                                 FUTURES_MINUTE_FIELDS,
                                                 self._daily_data_loader,
-                                                self._minute_data_loader, asset_type=AssetType.FUTURES,
+                                                self._minute_data_loader,
+                                                asset_type=AssetType.FUTURES,
                                                 cache_expand_minute_bars=False)
         self._prev_clearing_date_map = dict()
         self.continuous_fq_factors = {}
@@ -717,7 +697,7 @@ class FuturesMarketData(MarketData):
             return
         MarketData.rolling_load_daily_data(self, trading_days, max_cache_days)
         self._prev_clearing_date_map = dict(zip(
-            self._daily_bars_loaded_days, [previous_trading_day(trading_days[0])] + self._daily_bars_loaded_days[:-1]))
+            self._daily_bars_loaded_days, [get_previous_trading_date(trading_days[0])] + self._daily_bars_loaded_days[:-1]))
         self._prev_clearing_date_map = {key.strftime('%Y-%m-%d'): value.strftime('%Y-%m-%d')
                                         for key, value in self._prev_clearing_date_map.iteritems()}
         continuous_list = asset_service.filter_symbols(asset_type=AssetType.CONTINUOUS_FUTURES)

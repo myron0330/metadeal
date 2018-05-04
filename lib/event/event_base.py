@@ -46,6 +46,11 @@ class EventType(object):
     event_deal_with_trade = 'deal_with_trade'
     event_deal_with_order = 'deal_with_order'
 
+    event_on_bar = 'on_bar'
+    event_on_portfolio = 'on_portfolio'
+    event_start = 'start'
+    event_stop = 'stop'
+
     @classmethod
     def all_events(cls):
         """
@@ -88,4 +93,16 @@ class EventType(object):
         """
         return [
             cls.event_subscribe_trade,
+        ]
+
+    @classmethod
+    def trading_events(cls):
+        """
+        Trading engine events.
+        """
+        return [
+            cls.event_on_bar,
+            cls.event_on_portfolio,
+            cls.event_start,
+            cls.event_stop
         ]

@@ -82,7 +82,7 @@ def load_daily_futures_data(*args, **kwargs):
     Returns:
 
     """
-    pass
+    return
 
 
 def load_minute_futures_data(*args, **kwargs):
@@ -95,7 +95,7 @@ def load_minute_futures_data(*args, **kwargs):
     Returns:
 
     """
-    pass
+    return
 
 
 def get_futures_base_info(symbols=None):
