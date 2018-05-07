@@ -22,9 +22,10 @@ def getTempPath(name):
 
 
 class CTPMarketGateway(MdApi):
-    """CTP行情API实现"""
+    """
+    CTP Market Gateway.
+    """
 
-    # ----------------------------------------------------------------------
     def __init__(self, user_id=None, password=None, broker_id=None, address=None):
         """
         Initialize CTPMarketGateway.
@@ -39,6 +40,7 @@ class CTPMarketGateway(MdApi):
         self.broker_id = broker_id
         self.address = address
 
+        self.reqID = 0
         self.tickTime = None  # 最新行情time对象
 
     def connect(self, user_id=None, password=None, broker_id=None, address=None):
@@ -51,6 +53,7 @@ class CTPMarketGateway(MdApi):
             broker_id(string): broker id.
             address(string): address.
         """
+        print 'connect'
         self.user_id = user_id or self.user_id
         self.password = password or self.password
         self.broker_id = broker_id or self.broker_id
@@ -68,35 +71,71 @@ class CTPMarketGateway(MdApi):
             if not self.loginStatus:
                 self.login()
 
-    def subscribe(self, subscribeReq):
-        """订阅合约"""
+    def subscribe(self, symbols):
+        """
+        Subscribe market data.
+
+        Args:
+            symbols(string or list): subscribe symbol.
+        """
         # 这里的设计是，如果尚未登录就调用了订阅方法
         # 则先保存订阅请求，登录完成后会自动订阅
         if self.loginStatus:
-            self.subscribeMarketData(str(subscribeReq.symbol))
-        self.subscribedSymbols.add(subscribeReq)
+            self.subscribeMarketData(str(symbols.symbol))
+        self.subscribedSymbols.add(symbols)
 
     def login(self):
-        """登录"""
-        # 如果填入了用户名密码等，则登录
+        """
+        Request for log in.
+        """
         if self.user_id and self.password and self.broker_id:
             req = dict()
             req['UserID'] = self.user_id
             req['Password'] = self.password
             req['BrokerID'] = self.broker_id
-            self.reqID += 1
             self.reqUserLogin(req, self.reqID)
 
     def authenticate(self):
-        """申请验证"""
+        """
+        Request for authenticate.
+        """
+        print 'test'
         if self.user_id and self.broker_id and self.authCode and self.userProductInfo:
             req = dict()
             req['UserID'] = self.user_id
             req['BrokerID'] = self.broker_id
             req['AuthCode'] = self.authCode
             req['UserProductInfo'] = self.userProductInfo
-            self.reqID +=1
+            self.reqID += 1
             self.reqAuthenticate(req, self.reqID)
+
+    def onFrontConnected(self):
+        """
+        """
+        print 'test'
+        self.connectionStatus = True
+        self.login()
+
+    def onRspUserLogin(self, data, error, n, last):
+        """登陆回报"""
+        # 如果登录成功，推送日志信息
+        print data
+        if error['ErrorID'] == 0:
+            self.frontID = str(data['FrontID'])
+            self.sessionID = str(data['SessionID'])
+            self.loginStatus = True
+            self.gateway.tdConnected = True
+
+            # 确认结算信息
+            req = dict()
+            req['BrokerID'] = self.brokerID
+            req['InvestorID'] = self.userID
+            self.reqID += 1
+            self.reqSettlementInfoConfirm(req, self.reqID)
+            # 否则，推送错误信息
+        else:
+            # 标识登录失败，防止用错误信息连续重复登录
+            self.loginFailed = True
 
 
 market_gateway = CTPMarketGateway()
@@ -106,4 +145,3 @@ password = data['password']
 broker_id = data['brokerID']
 address = str(address)
 market_gateway.connect(user_id=user_id, password=password, broker_id=broker_id, address=address)
-market_gateway.authenticate()
