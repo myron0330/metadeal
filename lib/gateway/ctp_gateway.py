@@ -4,8 +4,9 @@
 # **********************************************************************************#
 import os
 import time
-from lib.api.ctp import *
-from lib.configs import logger
+from .. api.ctp import *
+from .. configs import logger
+from .. core.market import *
 
 
 def get_temp_path(file_name):
@@ -168,7 +169,7 @@ class CTPMarketGateway(MdApi):
         Args:
             data(dict): market data.
         """
-        print data
+        print Tick.from_ctp(data)
         # # 过滤尚未获取合约交易所时的行情推送
         # symbol = data['InstrumentID']
         # if symbol not in symbolExchangeDict:

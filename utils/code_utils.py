@@ -2,6 +2,7 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
+import re
 from string import Template
 
 
@@ -73,10 +74,35 @@ def dump_code_to_file(code, file_name=None, open_style='a'):
         temp_file.write(code)
 
 
+def hump_to_underline(hump_str):
+    """
+    Transfer hump to underline
+
+    Args:
+        hump_str(string): hump code string
+    """
+    p = re.compile(r'([a-z]|\d)([A-Z])')
+    sub = re.sub(p, r'\1_\2', hump_str).lower()
+    return sub
+
+
+def underline_to_hump(underline_str):
+    """
+    Transfer underline to hump
+
+    Args:
+        underline_str(string): underline code string
+    """
+    sub = re.sub(r'(_\w)', lambda x: x.group(1)[1].upper(), underline_str)
+    return sub
+
+
 __all__ = [
     'VALUE_OBJECT_TEMPLATE',
     'generate_class_object',
-    'dump_code_to_file'
+    'dump_code_to_file',
+    'hump_to_underline',
+    'underline_to_hump'
 ]
 
 

@@ -3,7 +3,6 @@
 #     File:
 # **********************************************************************************#
 import json
-import time
 from lib.gateway.ctp_gateway import CTPMarketGateway
 
 
