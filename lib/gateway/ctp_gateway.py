@@ -7,6 +7,7 @@ import time
 from .. api.ctp import *
 from .. configs import logger
 from .. core.market import *
+from .. event.event_base import *
 
 
 def get_temp_path(file_name):
@@ -29,7 +30,7 @@ class CTPMarketGateway(MdApi):
     CTP Market Gateway.
     """
 
-    def __init__(self, user_id=None, password=None, broker_id=None, address=None):
+    def __init__(self, user_id=None, password=None, broker_id=None, address=None, event_engine=None):
         """
         Initialize CTPMarketGateway.
         """
@@ -38,6 +39,7 @@ class CTPMarketGateway(MdApi):
         self.password = password
         self.broker_id = broker_id
         self.address = address
+        self.event_engine = event_engine
 
         self.connection_status = False  # 连接状态
         self.login_status = False  # 登录状态
@@ -155,70 +157,19 @@ class CTPMarketGateway(MdApi):
             req['BrokerID'] = self.broker_id
             req['InvestorID'] = self.user_id
             self.request_id += 1
-            # confirm settlement information.
-            # self.reqSettlementInfoConfirm(req, self.request_id)
-            # 否则，推送错误信息
         else:
             # 标识登录失败，防止用错误信息连续重复登录
             self.login_failed = True
 
     def onRtnDepthMarketData(self, data):
         """
-        Market data quotation.
+        Market data quotation response.
 
         Args:
             data(dict): market data.
         """
-        print Tick.from_ctp(data)
-        # # 过滤尚未获取合约交易所时的行情推送
-        # symbol = data['InstrumentID']
-        # if symbol not in symbolExchangeDict:
-        #     return
-        #
-        # # 创建对象
-        # tick = VtTickData()
-        # tick.gatewayName = self.gatewayName
-        #
-        # tick.symbol = symbol
-        # tick.exchange = symbolExchangeDict[tick.symbol]
-        # tick.vtSymbol = tick.symbol  # '.'.join([tick.symbol, tick.exchange])
-        #
-        # tick.lastPrice = data['LastPrice']
-        # tick.volume = data['Volume']
-        # tick.openInterest = data['OpenInterest']
-        # tick.time = '.'.join([data['UpdateTime'], str(data['UpdateMillisec'] / 100)])
-        #
-        # # 上期所和郑商所可以直接使用，大商所需要转换
-        # tick.date = data['ActionDay']
-        #
-        # tick.openPrice = data['OpenPrice']
-        # tick.highPrice = data['HighestPrice']
-        # tick.lowPrice = data['LowestPrice']
-        # tick.preClosePrice = data['PreClosePrice']
-        #
-        # tick.upperLimit = data['UpperLimitPrice']
-        # tick.lowerLimit = data['LowerLimitPrice']
-        #
-        # # CTP只有一档行情
-        # tick.bidPrice1 = data['BidPrice1']
-        # tick.bidVolume1 = data['BidVolume1']
-        # tick.askPrice1 = data['AskPrice1']
-        # tick.askVolume1 = data['AskVolume1']
-        #
-        # # 大商所日期转换
-        # if tick.exchange is EXCHANGE_DCE:
-        #     newTime = datetime.strptime(tick.time, '%H:%M:%S.%f').time()  # 最新tick时间戳
-        #
-        #     # 如果新tick的时间小于夜盘分隔，且上一个tick的时间大于夜盘分隔，则意味着越过了12点
-        #     if (self.tickTime and
-        #                 newTime < NIGHT_TRADING and
-        #                 self.tickTime > NIGHT_TRADING):
-        #         self.tradingDt += timedelta(1)  # 日期加1
-        #         self.tradingDate = self.tradingDt.strftime('%Y%m%d')  # 生成新的日期字符串
-        #
-        #     tick.date = self.tradingDate  # 使用本地维护的日期
-        #
-        #     self.tickTime = newTime  # 更新上一个tick时间
-        #
-        # self.gateway.onTick(tick)
-        #
+        tick_data = Tick.from_ctp(data)
+        parameters = {
+            'tick': tick_data
+        }
+        self.event_engine.publish(EventType.event_on_tick, **parameters)

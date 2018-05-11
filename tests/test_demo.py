@@ -54,9 +54,10 @@ def on_tick(context, tick):
 class TestDemo(TestCase):
     def setUp(self):
         self.strategy_code = DEFAULT_STRATEGY
+        self.connect_json = 'CTP_connect.json'
 
     def test_trading(self):
-        trading(strategy_code=self.strategy_code)
+        trading(strategy_code=self.strategy_code, connect_json=self.connect_json)
 
     def test_clock(self):
         print clock.now

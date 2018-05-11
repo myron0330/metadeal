@@ -2,9 +2,9 @@
 # **********************************************************************************#
 #     File: API file.
 # **********************************************************************************#
-from . account.account import AccountConfig
-from . trade.cost import Commission, Slippage
-from . trade.order import OrderState, OrderStateMessage
+from lib.account.account import AccountConfig
+from lib.trade.cost import Commission, Slippage
+from lib.trade.order import OrderState, OrderStateMessage
 
 
 __all__ = [

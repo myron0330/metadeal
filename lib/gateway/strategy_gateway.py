@@ -21,6 +21,7 @@ class StrategyGateway(BaseStrategyGateway):
         """
         if hasattr(strategy, 'on_tick'):
             strategy.on_tick(context, tick)
+        print tick
 
     @mutex_lock
     def on_order(self, strategy, context, order, **kwargs):
