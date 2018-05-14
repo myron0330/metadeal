@@ -4,36 +4,18 @@
 # **********************************************************************************#
 import os
 import time
-from .. api.ctp import *
-from .. configs import logger
-from .. core.market import *
-from .. event.event_base import *
-
-
-def get_temp_path(file_name):
-    """
-    Get path for saving temporary files.
-
-    Args:
-        file_name(string): file name
-    """
-    temp_path = os.path.join(os.getcwd(), 'temp')
-    if not os.path.exists(temp_path):
-        os.makedirs(temp_path)
-
-    path = os.path.join(temp_path, file_name)
-    return path
+from lib.api.ctp import *
+from lib.configs import logger
+from lib.core.market import *
+from lib.event.event_base import *
+from . ctp_base import get_temp_path
 
 
 class CTPMarketGateway(MdApi):
     """
     CTP Market Gateway.
     """
-
     def __init__(self, user_id=None, password=None, broker_id=None, address=None, event_engine=None):
-        """
-        Initialize CTPMarketGateway.
-        """
         super(CTPMarketGateway, self).__init__()
         self.user_id = user_id
         self.password = password
@@ -49,6 +31,7 @@ class CTPMarketGateway(MdApi):
         self.front_id = None
         self.tickTime = None  # 最新行情time对象
         self.auth_code = None
+        self.auth_status = False
         self.user_product_info = None
         self.session_id = None
 
@@ -96,7 +79,7 @@ class CTPMarketGateway(MdApi):
 
     def login(self):
         """
-        Request for log in.
+        Request for logging in.
         """
         if self.login_failed:
             return
@@ -145,21 +128,34 @@ class CTPMarketGateway(MdApi):
             n(unused): unused
             last(unused): unused
         """
-        # 如果登录成功，推送日志信息
         if error['ErrorID'] == 0:
             logger.info('[onRspUserLogin] succeed. '
                         'front_id: {}, session_id: {}'.format(str(data['FrontID']), str(data['SessionID'])))
             self.front_id = str(data['FrontID'])
             self.session_id = str(data['SessionID'])
             self.login_status = True
-            # 确认结算信息
-            req = dict()
-            req['BrokerID'] = self.broker_id
-            req['InvestorID'] = self.user_id
             self.request_id += 1
         else:
             # 标识登录失败，防止用错误信息连续重复登录
             self.login_failed = True
+
+    def onRspAuthenticate(self, data, error, n, last):
+        """
+        Authentication response, deal with authentication.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+            n(unused): unused
+            last(unused): unused
+        """
+        if error['ErrorID'] == 0:
+            self.front_id = str(data['FrontID'])
+            self.session_id = str(data['SessionID'])
+            self.auth_status = True
+            self.login()
+        else:
+            self.auth_status = False
 
     def onRtnDepthMarketData(self, data):
         """

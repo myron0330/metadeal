@@ -3,11 +3,11 @@
 #     File:
 # **********************************************************************************#
 import json
+
 from lib.event.event_base import EventType
 from lib.event.event_engine import EventEngine
-from lib.gateway.ctp_gateway import CTPMarketGateway
+from lib.gateway.ctpGateway.market_gateway import CTPMarketGateway
 from lib.gateway.strategy_gateway import StrategyGateway
-
 
 data = json.load(open('CTP_connect.json', 'r+'))
 address = data['mdAddress']
