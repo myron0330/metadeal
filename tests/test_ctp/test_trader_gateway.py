@@ -10,10 +10,10 @@ from lib.gateway.ctpGateway.trader_gateway import CtpTraderGateway
 from lib.gateway.strategy_gateway import StrategyGateway
 
 data = json.load(open('CTP_connect.json', 'r+'))
-address = data['tdAddress']
-user_id = data['userID']
-password = data['password']
-broker_id = data['brokerID']
+address = str(data['tdAddress'])
+user_id = str(data['userID'])
+password = str(data['password'])
+broker_id = str(data['brokerID'])
 address = str(address)
 event_engine = EventEngine()
 trader_gateway = CtpTraderGateway(user_id=user_id,
