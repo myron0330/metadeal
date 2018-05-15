@@ -134,8 +134,25 @@ class CtpTraderGateway(TdApi):
                 'Password': self.password,
                 'BrokerID': self.broker_id
             }
-            self.request_id += 1
-            self.reqUserLogin(request, self.request_id)
+            self.reqUserLogin(request, self._generate_next_request_id())
+            time.sleep(0.1)
+            self.settlement_confirm()
+            time.sleep(0.1)
+
+    def settlement_confirm(self):
+        """
+        Request for settlement confirming.
+        """
+        if self.user_id and self.password and self.broker_id:
+            logger.info('[settlement_confirm] user_id: {},'
+                        'broker_id: {}, '
+                        'address: {}'.format(self.user_id, self.broker_id, self.address))
+            request = {
+                'UserID': self.user_id,
+                'Password': self.password,
+                'BrokerID': self.broker_id
+            }
+            self.reqSettlementInfoConfirm(request, self._generate_next_request_id())
             time.sleep(0.1)
 
     def authenticate(self):
@@ -264,9 +281,23 @@ class CtpTraderGateway(TdApi):
                     ''.format(str(self.broker_id), str(self.user_id)))
         request = {
             'BrokerID': self.broker_id,
-            'InvestorID': self.user_id
+            'InvestorID': self.user_id,
         }
         self.reqQryInvestorPosition(request, self.request_id)
+        time.sleep(0.1)
+
+    @generate_request_id
+    def query_position_detail(self):
+        """
+        Query positions detail information.
+        """
+        logger.info('[query_positions_detail] broker_id: {}, user_id: {}.'
+                    ''.format(str(self.broker_id), str(self.user_id)))
+        request = {
+            'BrokerID': self.broker_id,
+            'InvestorID': self.user_id,
+        }
+        self.reqQryInvestorPositionDetail(request, self.request_id)
         time.sleep(0.1)
 
     def _generate_next_request_id(self):
@@ -334,12 +365,12 @@ class CtpTraderGateway(TdApi):
 
     def onRspSettlementInfoConfirm(self, data, error, n, last):
         """确认结算信息回报"""
+        print data
         # self.writeLog(text.SETTLEMENT_INFO_CONFIRMED)
         #
         # # 查询合约代码
         # self.request_id += 1
         # self.reqQryInstrument({}, self.request_id)
-        raise NotImplementedError
 
     def onRspRemoveParkedOrder(self, data, error, n, last):
         """"""
@@ -543,6 +574,7 @@ class CtpTraderGateway(TdApi):
 
     def onRspQryInvestorPositionDetail(self, data, error, n, last):
         """"""
+        logger.info(data)
         pass
 
     def onRspQryNotice(self, data, error, n, last):

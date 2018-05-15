@@ -25,4 +25,7 @@ event_engine.register_handlers(EventType.event_on_tick, getattr(strategy_gateway
 event_engine.start()
 trader_gateway.connect()
 trader_gateway.query_account()
+import time
+time.sleep(1)
 trader_gateway.query_positions()
+trader_gateway.query_position_detail()
