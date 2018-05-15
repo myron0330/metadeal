@@ -8,7 +8,26 @@ from utils.code_utils import (
 from . objects import ValueObject
 
 
-class Tick(ValueObject):
+class CTPObject(ValueObject):
+
+    @classmethod
+    def from_ctp(cls, item):
+        """
+        Generate from ctp.
+
+        Args:
+            item(dict): ctp item data
+
+        Returns:
+            obj: instance
+        """
+        underline_item = {
+            hump_to_underline(key): value for key, value in item.iteritems()
+        }
+        return cls(**underline_item)
+
+
+class Tick(CTPObject):
 
     __slots__ = [
         'bid_price3',
@@ -133,7 +152,7 @@ class Tick(ValueObject):
         return cls(**underline_item)
 
 
-class AccountResponse(ValueObject):
+class AccountResponse(CTPObject):
 
     __slots__ = [
         'spec_product_position_profit_by_alg',
@@ -185,7 +204,23 @@ class AccountResponse(ValueObject):
         'reserve',
     ]
 
-    def __init__(self, spec_product_position_profit_by_alg=None, pre_fund_mortgage_out=None, delivery_margin=None, frozen_commission=None, curr_margin=None, interest_base=None, position_profit=None, currency_id=None, broker_id=None, frozen_margin=None, pre_margin=None, withdraw_quota=None, fund_mortgage_in=None, deposit=None, mortgage=None, spec_product_commission=None, spec_product_margin=None, pre_credit=None, pre_mortgage=None, commission=None, biz_type=None, spec_product_close_profit=None, interest=None, pre_balance=None, fund_mortgage_out=None, exchange_margin=None, available=None, account_id=None, pre_fund_mortgage_in=None, fund_mortgage_available=None, spec_product_frozen_margin=None, pre_deposit=None, spec_product_frozen_commission=None, close_profit=None, reserve_balance=None, exchange_delivery_margin=None, trading_day=None, cash_in=None, frozen_cash=None, spec_product_exchange_margin=None, settlement_id=None, credit=None, mortgageable_fund=None, withdraw=None, spec_product_position_profit=None, balance=None, reserve=None):
+    def __init__(self, spec_product_position_profit_by_alg=None, pre_fund_mortgage_out=None, delivery_margin=None,
+                 frozen_commission=None, curr_margin=None, interest_base=None,
+                 position_profit=None, currency_id=None, broker_id=None,
+                 frozen_margin=None, pre_margin=None, withdraw_quota=None,
+                 fund_mortgage_in=None, deposit=None, mortgage=None,
+                 spec_product_commission=None, spec_product_margin=None,
+                 pre_credit=None, pre_mortgage=None, commission=None,
+                 biz_type=None, spec_product_close_profit=None, interest=None,
+                 pre_balance=None, fund_mortgage_out=None, exchange_margin=None,
+                 available=None, account_id=None, pre_fund_mortgage_in=None,
+                 fund_mortgage_available=None, spec_product_frozen_margin=None,
+                 pre_deposit=None, spec_product_frozen_commission=None,
+                 close_profit=None, reserve_balance=None, exchange_delivery_margin=None,
+                 trading_day=None, cash_in=None, frozen_cash=None,
+                 spec_product_exchange_margin=None, settlement_id=None, credit=None,
+                 mortgageable_fund=None, withdraw=None, spec_product_position_profit=None,
+                 balance=None, reserve=None):
         self.spec_product_position_profit_by_alg = spec_product_position_profit_by_alg
         self.pre_fund_mortgage_out = pre_fund_mortgage_out
         self.delivery_margin = delivery_margin
@@ -234,24 +269,8 @@ class AccountResponse(ValueObject):
         self.balance = balance
         self.reserve = reserve
 
-    @classmethod
-    def from_ctp(cls, item):
-        """
-        Generate from ctp.
 
-        Args:
-            item(dict): ctp tick data
-
-        Returns:
-            obj: Tick instance
-        """
-        underline_item = {
-            hump_to_underline(key): value for key, value in item.iteritems()
-        }
-        return cls(**underline_item)
-
-
-class TradeResponse(ValueObject):
+class TradeResponse(CTPObject):
 
     __slots__ = [
         'instrument_id',
@@ -286,7 +305,14 @@ class TradeResponse(ValueObject):
         'settlement_id',
     ]
 
-    def __init__(self, instrument_id=None, trader_id=None, trading_role=None, sequence_no=None, order_sys_id=None, exchange_id=None, broker_id=None, broker_order_seq=None, price_source=None, hedge_flag=None, user_id=None, investor_id=None, business_unit=None, trade_time=None, trade_date=None, trade_source=None, direction=None, trade_type=None, price=None, participant_id=None, order_local_id=None, order_ref=None, volume=None, offset_flag=None, trade_id=None, client_id=None, trading_day=None, exchange_inst_id=None, clearing_part_id=None, settlement_id=None):
+    def __init__(self, instrument_id=None, trader_id=None, trading_role=None, sequence_no=None, order_sys_id=None,
+                 exchange_id=None, broker_id=None, broker_order_seq=None, price_source=None,
+                 hedge_flag=None, user_id=None, investor_id=None, business_unit=None,
+                 trade_time=None, trade_date=None, trade_source=None, direction=None,
+                 trade_type=None, price=None, participant_id=None, order_local_id=None,
+                 order_ref=None, volume=None, offset_flag=None, trade_id=None, client_id=None,
+                 trading_day=None, exchange_inst_id=None, clearing_part_id=None,
+                 settlement_id=None):
         self.instrument_id = instrument_id
         self.trader_id = trader_id
         self.trading_role = trading_role
@@ -318,6 +344,120 @@ class TradeResponse(ValueObject):
         self.clearing_part_id = clearing_part_id
         self.settlement_id = settlement_id
 
+
+class SettlementConfirmResponse(CTPObject):
+
+    __slots__ = [
+        'confirm_time',
+        'confirm_date',
+        'broker_id',
+        'investor_id',
+    ]
+
+    def __init__(self, confirm_time=None, confirm_date=None, broker_id=None, investor_id=None):
+        self.confirm_time = confirm_time
+        self.confirm_date = confirm_date
+        self.broker_id = broker_id
+        self.investor_id = investor_id
+
+
+class PositionResponse(CTPObject):
+
+    __slots__ = [
+        'instrument_id',
+        'use_margin',
+        'close_volume',
+        'comb_position',
+        'frozen_commission',
+        'open_amount',
+        'yd_strike_frozen',
+        'yd_position',
+        'open_cost',
+        'exchange_id',
+        'broker_id',
+        'close_profit_by_trade',
+        'pre_margin',
+        'comb_long_frozen',
+        'margin_rate_by_volume',
+        'hedge_flag',
+        'frozen_margin',
+        'cash_in',
+        'short_frozen_amount',
+        'position_cost',
+        'investor_id',
+        'commission',
+        'position_direction',
+        'long_frozen_amount',
+        'close_profit_by_date',
+        'margin_rate_by_money',
+        'exchange_margin',
+        'pre_settlement_price',
+        'strike_frozen',
+        'position_profit',
+        'close_profit',
+        'today_position',
+        'comb_short_frozen',
+        'trading_day',
+        'abandon_frozen',
+        'close_amount',
+        'strike_frozen_amount',
+        'frozen_cash',
+        'long_frozen',
+        'settlement_price',
+        'position_date',
+        'settlement_id',
+        'short_frozen',
+        'position',
+        'open_volume',
+    ]
+
+    def __init__(self, instrument_id=None, use_margin=None, close_volume=None, comb_position=None, frozen_commission=None, open_amount=None, yd_strike_frozen=None, yd_position=None, open_cost=None, exchange_id=None, broker_id=None, close_profit_by_trade=None, pre_margin=None, comb_long_frozen=None, margin_rate_by_volume=None, hedge_flag=None, frozen_margin=None, cash_in=None, short_frozen_amount=None, position_cost=None, investor_id=None, commission=None, position_direction=None, long_frozen_amount=None, close_profit_by_date=None, margin_rate_by_money=None, exchange_margin=None, pre_settlement_price=None, strike_frozen=None, position_profit=None, close_profit=None, today_position=None, comb_short_frozen=None, trading_day=None, abandon_frozen=None, close_amount=None, strike_frozen_amount=None, frozen_cash=None, long_frozen=None, settlement_price=None, position_date=None, settlement_id=None, short_frozen=None, position=None, open_volume=None):
+        self.instrument_id = instrument_id
+        self.use_margin = use_margin
+        self.close_volume = close_volume
+        self.comb_position = comb_position
+        self.frozen_commission = frozen_commission
+        self.open_amount = open_amount
+        self.yd_strike_frozen = yd_strike_frozen
+        self.yd_position = yd_position
+        self.open_cost = open_cost
+        self.exchange_id = exchange_id
+        self.broker_id = broker_id
+        self.close_profit_by_trade = close_profit_by_trade
+        self.pre_margin = pre_margin
+        self.comb_long_frozen = comb_long_frozen
+        self.margin_rate_by_volume = margin_rate_by_volume
+        self.hedge_flag = hedge_flag
+        self.frozen_margin = frozen_margin
+        self.cash_in = cash_in
+        self.short_frozen_amount = short_frozen_amount
+        self.position_cost = position_cost
+        self.investor_id = investor_id
+        self.commission = commission
+        self.position_direction = position_direction
+        self.long_frozen_amount = long_frozen_amount
+        self.close_profit_by_date = close_profit_by_date
+        self.margin_rate_by_money = margin_rate_by_money
+        self.exchange_margin = exchange_margin
+        self.pre_settlement_price = pre_settlement_price
+        self.strike_frozen = strike_frozen
+        self.position_profit = position_profit
+        self.close_profit = close_profit
+        self.today_position = today_position
+        self.comb_short_frozen = comb_short_frozen
+        self.trading_day = trading_day
+        self.abandon_frozen = abandon_frozen
+        self.close_amount = close_amount
+        self.strike_frozen_amount = strike_frozen_amount
+        self.frozen_cash = frozen_cash
+        self.long_frozen = long_frozen
+        self.settlement_price = settlement_price
+        self.position_date = position_date
+        self.settlement_id = settlement_id
+        self.short_frozen = short_frozen
+        self.position = position
+        self.open_volume = open_volume
+
     @classmethod
     def from_ctp(cls, item):
         """
@@ -329,6 +469,7 @@ class TradeResponse(ValueObject):
         Returns:
             obj: Tick instance
         """
+        item['position_direction'] = item.pop('PosiDirection')
         underline_item = {
             hump_to_underline(key): value for key, value in item.iteritems()
         }
@@ -338,5 +479,8 @@ class TradeResponse(ValueObject):
 __all__ = [
     'Tick',
     'AccountResponse',
-    'TradeResponse'
+    'TradeResponse',
+    'SettlementConfirmResponse',
+    'PositionResponse'
 ]
+
