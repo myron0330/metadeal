@@ -179,7 +179,7 @@ class PositionSchema(ValueObject):
         self.daily_return = daily_return
 
     @classmethod
-    def from_query(cls, item, securities_type=SecuritiesType.SECURITY):
+    def from_query(cls, item, securities_type=SecuritiesType.futures):
         """
         Generate from query item
 
@@ -190,7 +190,7 @@ class PositionSchema(ValueObject):
         portfolio_id = item['portfolio_id']
         date = item['date']
         cash = item['cash']
-        position_object = MetaPosition if securities_type == SecuritiesType.SECURITY else LongShortPosition
+        position_object = LongShortPosition if securities_type == SecuritiesType.futures else MetaPosition
         positions = {position['symbol']: position_object.from_query(position) for position in item['positions']}
         pre_portfolio_value = item['pre_portfolio_value']
         portfolio_value = item['portfolio_value']
@@ -262,12 +262,13 @@ class OrderSchema(ValueObject):
         self.orders = orders or dict()
 
     @classmethod
-    def from_query(cls, item):
+    def from_query(cls, item, normalize_object=True):
         """
         Generate from query item
 
         Args:
-            item(dict): query database
+            item(dict): query data
+            normalize_object(object): normalize object
         """
         portfolio_id = item['portfolio_id']
         date = item['date']
@@ -276,11 +277,17 @@ class OrderSchema(ValueObject):
             for order in item['orders']:
                 order_id = order['order_id']
                 order['portfolio_id'] = portfolio_id
-                orders[order_id] = Order.from_query(order)
+                if normalize_object:
+                    orders[order_id] = Order.from_query(order)
+                else:
+                    orders[order_id] = order
         else:
             for order_id, order in item['orders'].iteritems():
                 order['portfolio_id'] = portfolio_id
-                orders[order_id] = Order.from_query(order)
+                if normalize_object:
+                    orders[order_id] = Order.from_query(order)
+                else:
+                    orders[order_id] = order
         return cls(portfolio_id=portfolio_id, date=date, orders=orders)
 
     def to_redis_item(self):

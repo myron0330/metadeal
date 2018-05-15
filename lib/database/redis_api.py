@@ -4,9 +4,21 @@
 # **********************************************************************************#
 import json
 import time
+from datetime import datetime
 from utils.error_utils import Errors
-from . redis_base import redis_client, redis_queue
-from .. core.collection import switch_collection
+from utils.dict_utils import DefaultDict
+from . redis_base import (
+    redis_client,
+    RedisCollection,
+    redis_queue,
+)
+from .. core.enums import SecuritiesType
+from .. core.schema import (
+    SchemaType,
+    OrderSchema,
+    PositionSchema,
+    TradeSchema
+)
 
 
 def redis_lock(name):
@@ -24,46 +36,55 @@ def redis_unlock(name, timeout=None):
         if timeout:
             time.sleep(timeout)
         redis_client.delete(name)
-    finally:
+    except:
         pass
 
 
-def _query_from_(collection, schema_id=None):
+def _query_from_(collection, portfolio_id=None):
     """
-    Query collection database from database
+    Query collection data from database
 
     Args:
         collection(collection): mongodb collection
-        schema_id(string or list of string): optional, portfolio_id
+        portfolio_id(string or list of string): optional, portfolio_id
 
     Returns:
-        dict: collection database
+        dict: collection data
     """
-    if schema_id is None:
+    if portfolio_id is None:
         response = redis_client.hgetall(collection)
-    elif isinstance(schema_id, (str, unicode)):
         response = {
-            schema_id: redis_client.hget(collection, schema_id)
+            key: json.loads(value) for key, value in response.iteritems() if value is not None
         }
-    elif isinstance(schema_id, (list, tuple, set)):
-        response = dict(zip(schema_id, redis_client.hmget(collection, *schema_id)))
+    elif isinstance(portfolio_id, (str, unicode)):
+        value = redis_client.hget(collection, portfolio_id)
+        if value:
+            response = {
+                portfolio_id: json.loads(value)
+            }
+        else:
+            response = {}
+    elif isinstance(portfolio_id, (list, tuple, set)):
+        temp = redis_client.hmget(collection, *portfolio_id)
+        response = {}
+        for idx, key in enumerate(portfolio_id):
+            if temp[idx]:
+                response[key] = json.loads(temp[idx])
     else:
-        raise Errors.INVALID_SCHEMA_ID_INPUT
-    response = {
-        key: json.loads(value) for key, value in response.iteritems() if value is not None
-    }
+        raise Errors.INVALID_PORTFOLIO_ID
+
     return response
 
 
 def _query_from_queue_(collection):
     """
-    Query collection database from redis queue
+    Query collection data from redis queue
 
     Args:
         collection(collection): mongodb collection
 
     Returns:
-        dict: collection database
+        dict: collection data
     """
     items = redis_queue.get_all(key=collection)
     return items
@@ -71,13 +92,13 @@ def _query_from_queue_(collection):
 
 def _dump_to_(collection, mapping):
     """
-    Query collection database from database
+    Query collection data from database
 
     Args:
         collection(collection): mongodb collection
-        mapping(dict): database, composite dict
+        mapping(dict): data, composite dict
     Returns:
-        list: collection database
+        list: collection data
     """
     for key, value in mapping.iteritems():
         mapping[key] = json.dumps(value)
@@ -85,21 +106,44 @@ def _dump_to_(collection, mapping):
         redis_client.hmset(collection, mapping)
 
 
-def query_from_redis(schema_type, schema_id=None):
+def query_from_redis(schema_type, portfolio_id=None, **kwargs):
     """
-    Query database from redis
+    Query data from redis
 
     Args:
         schema_type(string): schema type
-        schema_id(None, str or list): None--> all;
+        portfolio_id(None, str or list): None--> all;
     """
-    collection = switch_collection('redis', schema_type)
-    query_data = _query_from_(collection, schema_id)
-    # todo. deal with query database.
-    return query_data
+    normalize_object = kwargs.get('normalize_object', True)
+    if schema_type == SchemaType.order:
+        query_data = _query_from_(RedisCollection.order, portfolio_id)
+        for key in query_data.keys():
+            query_data[key] = OrderSchema.from_query(query_data[key], normalize_object=normalize_object)
+        return query_data
+    if schema_type == SchemaType.position:
+        query_data = _query_from_(RedisCollection.position, portfolio_id)
+        for key in query_data.keys():
+            query_data[key] = PositionSchema.from_query(query_data[key], securities_type=SecuritiesType.futures)
+        return query_data
+    if schema_type == SchemaType.trade:
+        query_data = _query_from_queue_(RedisCollection.trade)
+        current_date = datetime.today().strftime('%Y%m%d')
+        schema_items = DefaultDict({
+            'portfolio_id': None,
+            'date': current_date,
+            'trades': list()
+        })
+        for item in query_data:
+            portfolio_id = item['portfolio_id']
+            schema_items[portfolio_id]['portfolio_id'] = portfolio_id
+            schema_items[portfolio_id]['trades'].append(item)
+        return {
+            key: TradeSchema.from_query(schema) for key, schema in schema_items.iteritems()
+        }
+    raise Errors.INVALID_SCHEMA_TYPE
 
 
-def dump_schema_to_redis(schema_type, schema):
+def dump_schema_to_redis(schema_type, schema, **kwargs):
     """
     Dump schema to redis
 
@@ -107,12 +151,19 @@ def dump_schema_to_redis(schema_type, schema):
         schema_type(string): schema type
         schema(schema or dict of schema): schema object
     """
-    collection = switch_collection('redis', schema_type)
+    if schema_type == SchemaType.order:
+        collection = RedisCollection.order
+    elif schema_type == SchemaType.position:
+        collection = RedisCollection.position
+    else:
+        raise Errors.INVALID_SCHEMA_TYPE
+    to_dict = kwargs.get('to_dict', True)
     if isinstance(schema, dict):
         data = \
-            {schema_id: curr_schema.to_redis_item() for schema_id, curr_schema in schema.iteritems()}
+            {portfolio_id: curr_schema.to_redis_item(to_dict=to_dict) for portfolio_id, curr_schema in
+             schema.iteritems()}
     else:
-        data = {schema.portfolio_id: schema.to_redis_item()}
+        data = {schema.portfolio_id: schema.to_redis_item(to_dict=to_dict)}
     _dump_to_(collection, data)
 
 
@@ -126,14 +177,18 @@ def delete_keys_redis(*delete_keys):
         result(int): deleted amounts
     """
     retry_nums = 0
+
     while retry_nums < 3:
         result = redis_client.delete(*delete_keys)
+
         if result != len(delete_keys):
             retry_nums += 1
         else:
             return result
+
     not_deleted = set(delete_keys) & set(redis_client.keys())
-    result = len(delete_keys)-len(not_deleted)
+    result = len(delete_keys) - len(not_deleted)
+
     return result
 
 
@@ -145,5 +200,10 @@ def delete_items_in_redis(schema_type, keys):
         schema_type(string): schema type
         keys(list): keys
     """
-    collection = switch_collection('redis', chema_type)
+    if schema_type == SchemaType.order:
+        collection = RedisCollection.order
+    elif schema_type == SchemaType.position:
+        collection = RedisCollection.position
+    else:
+        raise Errors.INVALID_SCHEMA_TYPE
     redis_client.hdel(collection, *keys)

@@ -7,6 +7,50 @@ import redis
 from .. configs import redis_host, redis_port
 
 
+class RedisCollection(object):
+
+    order = 'order'
+    position = 'position'
+    trade = 'trade'
+
+
+class RedisSet(object):
+
+    def __init__(self, client, key='changed_portfolio_set'):
+        self.client = client
+        self.key = key
+
+    def add_elements_to_set(self, elements, key=None):
+        """
+        Add elements to set.
+        Args:
+            elements(list): element list
+            key(string): redis key
+
+        Returns:
+
+        """
+        key = key or self.key
+        self.client.sadd(key, *elements)
+
+    def get_and_pop_all_elements(self, key=None):
+        """
+        Get and pop all elements
+        Args:
+            key(string): redis key
+
+        Returns:
+            list: result
+        """
+        key = key or self.key
+        result = list()
+        while self.client.scard(key) > 0:
+            item = self.client.spop(key)
+            if item:
+                result.append(item)
+        return result
+
+
 class RedisQueue(object):
 
     def __init__(self, client, key='queue'):
@@ -110,3 +154,4 @@ class RedisQueue(object):
 _pool = redis.ConnectionPool(host=redis_host, port=redis_port)
 redis_client = redis.Redis(connection_pool=_pool)
 redis_queue = RedisQueue(redis_client)
+redis_set = RedisSet(redis_client)

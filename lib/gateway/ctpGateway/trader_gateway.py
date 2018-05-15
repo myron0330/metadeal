@@ -175,6 +175,34 @@ class CtpTraderGateway(TdApi):
             self.reqAuthenticate(request, self.request_id)
             time.sleep(0.1)
 
+    @generate_request_id
+    def query_account(self):
+        """
+        Query the basic information of account.
+        """
+        logger.info('[query_account] broker_id: {}, user_id: {}.'
+                    ''.format(str(self.broker_id), str(self.user_id)))
+        request = {
+            'BrokerID': self.broker_id,
+            'InvestorID': self.user_id
+        }
+        self.reqQryTradingAccount(request, self.request_id)
+        time.sleep(0.1)
+
+    @generate_request_id
+    def query_positions(self):
+        """
+        Query positions information.
+        """
+        logger.info('[query_positions] broker_id: {}, user_id: {}.'
+                    ''.format(str(self.broker_id), str(self.user_id)))
+        request = {
+            'BrokerID': self.broker_id,
+            'InvestorID': self.user_id,
+        }
+        self.reqQryInvestorPosition(request, self.request_id)
+        time.sleep(0.1)
+
     def onFrontConnected(self):
         """
         Server connected.
@@ -209,7 +237,6 @@ class CtpTraderGateway(TdApi):
             self.front_id = str(data['FrontID'])
             self.session_id = str(data['SessionID'])
             self.login_status = True
-            self.request_id += 1
         else:
             # 标识登录失败，防止用错误信息连续重复登录
             self.login_failed = True
@@ -245,20 +272,6 @@ class CtpTraderGateway(TdApi):
         else:
             self.auth_status = False
 
-    @generate_request_id
-    def query_account(self):
-        """
-        Query the basic information of account.
-        """
-        logger.info('[query_account] broker_id: {}, user_id: {}.'
-                    ''.format(str(self.broker_id), str(self.user_id)))
-        request = {
-            'BrokerID': self.broker_id,
-            'InvestorID': self.user_id
-        }
-        self.reqQryTradingAccount(request, self.request_id)
-        time.sleep(0.1)
-
     def onRspQryTradingAccount(self, data, error, n, last):
         """
         Response of the basic information of account.
@@ -271,51 +284,6 @@ class CtpTraderGateway(TdApi):
         """
         response = AccountResponse.from_ctp(data)
         logger.info('[onRspQryTradingAccount] {}'.format(response))
-
-    @generate_request_id
-    def query_positions(self):
-        """
-        Query positions information.
-        """
-        logger.info('[query_positions] broker_id: {}, user_id: {}.'
-                    ''.format(str(self.broker_id), str(self.user_id)))
-        request = {
-            'BrokerID': self.broker_id,
-            'InvestorID': self.user_id,
-        }
-        self.reqQryInvestorPosition(request, self.request_id)
-        time.sleep(0.1)
-
-    @generate_request_id
-    def query_position_detail(self):
-        """
-        Query positions detail information.
-        """
-        logger.info('[query_positions_detail] broker_id: {}, user_id: {}.'
-                    ''.format(str(self.broker_id), str(self.user_id)))
-        request = {
-            'BrokerID': self.broker_id,
-            'InvestorID': self.user_id,
-        }
-        self.reqQryInvestorPositionDetail(request, self.request_id)
-        time.sleep(0.1)
-
-    def _generate_next_request_id(self):
-        """
-        Get next request id.
-        """
-        self.request_id += 1
-        return self.request_id
-
-    def onRtnTrade(self, data):
-        """
-        Trade response information.
-
-        Args:
-            data(dict): response data.
-        """
-        response = TradeResponse.from_ctp(data)
-        logger.info('[onRtnTrade] {}'.format(response))
 
     def onRspSettlementInfoConfirm(self, data, error, n, last):
         """
@@ -330,6 +298,16 @@ class CtpTraderGateway(TdApi):
         response = SettlementConfirmResponse.from_ctp(data)
         logger.info('[onRspSettlementInfoConfirm] {}'.format(response))
 
+    def onRtnTrade(self, data):
+        """
+        Trade response information.
+
+        Args:
+            data(dict): response data.
+        """
+        response = TradeResponse.from_ctp(data)
+        logger.info('[onRtnTrade] {}'.format(response))
+
     def onRspQryInvestorPosition(self, data, error, n, last):
         """
         Response of the current position information of account.
@@ -342,6 +320,13 @@ class CtpTraderGateway(TdApi):
         """
         response = PositionResponse.from_ctp(data)
         logger.info('[onRspQryInvestorPosition] {}'.format(response))
+
+    def _generate_next_request_id(self):
+        """
+        Get next request id.
+        """
+        self.request_id += 1
+        return self.request_id
 
     def onRspOrderInsert(self, data, error, n, last):
         """发单错误（柜台）"""
@@ -368,14 +353,6 @@ class CtpTraderGateway(TdApi):
         # self.gateway.onError(err)
         raise NotImplementedError
 
-    def onRspParkedOrderInsert(self, data, error, n, last):
-        """"""
-        pass
-
-    def onRspParkedOrderAction(self, data, error, n, last):
-        """"""
-        pass
-
     def onRspOrderAction(self, data, error, n, last):
         """撤单错误（柜台）"""
         # err = VtErrorData()
@@ -384,6 +361,14 @@ class CtpTraderGateway(TdApi):
         # err.errorMsg = error['ErrorMsg'].decode('gbk')
         # self.gateway.onError(err)
         raise NotImplementedError
+
+    def onRspParkedOrderInsert(self, data, error, n, last):
+        """"""
+        pass
+
+    def onRspParkedOrderAction(self, data, error, n, last):
+        """"""
+        pass
 
     def onRspQueryMaxOrderVolume(self, data, error, n, last):
         """"""
@@ -1032,8 +1017,3 @@ class CtpTraderGateway(TdApi):
         log.gatewayName = self.gatewayName
         log.logContent = content
         self.gateway.onLog(log)
-
-
-
-
-
