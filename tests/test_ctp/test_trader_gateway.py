@@ -14,6 +14,10 @@ address = str(data['tdAddress'])
 user_id = str(data['userID'])
 password = str(data['password'])
 broker_id = str(data['brokerID'])
+# address = data['tdAddress']
+# user_id = data['userID']
+# password = data['password']
+# broker_id = data['brokerID']
 address = str(address)
 event_engine = EventEngine()
 trader_gateway = CtpTraderGateway(user_id=user_id,
@@ -25,4 +29,4 @@ strategy_gateway = StrategyGateway()
 event_engine.register_handlers(EventType.event_on_tick, getattr(strategy_gateway, EventType.event_on_tick))
 event_engine.start()
 trader_gateway.connect()
-trader_gateway.query_account_info()
+trader_gateway.query_account()

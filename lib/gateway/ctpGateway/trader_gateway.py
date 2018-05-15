@@ -42,6 +42,27 @@ class CtpTraderGateway(TdApi):
 
         self.requireAuthentication = False
 
+    def __setattr__(self, attribute, value):
+        """
+        Add type mapping to some attributes.
+        Args:
+            attribute: 
+            value: 
+
+        Returns:
+
+        """
+        type_mapping = {
+            'user_id': str,
+            'password': str,
+            'broker_id': str,
+            'address': str
+        }
+        if attribute in type_mapping:
+            object.__setattr__(self, attribute, type_mapping[attribute](value))
+        else:
+            object.__setattr__(self, attribute, value)
+
     def connect(self, user_id=None, password=None, broker_id=None, address=None,
                 auth_code=None, user_product_info=None):
         """
@@ -82,6 +103,7 @@ class CtpTraderGateway(TdApi):
                 self.authenticate()
             elif not self.login_status:
                 self.login()
+        time.sleep(0.1)
 
     def login(self):
         """
@@ -94,12 +116,14 @@ class CtpTraderGateway(TdApi):
             logger.info('[login] user_id: {},'
                         'broker_id: {}, '
                         'address: {}'.format(self.user_id, self.broker_id, self.address))
-            request = dict()
-            request['UserID'] = self.user_id
-            request['Password'] = self.password
-            request['BrokerID'] = self.broker_id
+            request = {
+                'UserID': self.user_id,
+                'Password': self.password,
+                'BrokerID': self.broker_id
+            }
             self.request_id += 1
             self.reqUserLogin(request, self.request_id)
+            time.sleep(0.1)
 
     def authenticate(self):
         """
@@ -111,13 +135,15 @@ class CtpTraderGateway(TdApi):
                         'auth_code: {},'
                         'user_product_info'.format(self.user_id, self.broker_id,
                                                    self.auth_code, self.user_product_info))
-            request = dict()
-            request['UserID'] = self.user_id
-            request['BrokerID'] = self.broker_id
-            request['AuthCode'] = self.auth_code
-            request['UserProductInfo'] = self.user_product_info
+            request = {
+                'UserID': self.user_id,
+                'BrokerID': self.broker_id,
+                'AuthCode': self.auth_code,
+                'UserProductInfo': self.user_product_info
+            }
             self.request_id += 1
             self.reqAuthenticate(request, self.request_id)
+            time.sleep(0.1)
 
     def onFrontConnected(self):
         """
@@ -128,7 +154,6 @@ class CtpTraderGateway(TdApi):
             self.authenticate()
         else:
             self.login()
-        time.sleep(0.1)
 
     def onFrontDisconnected(self, n):
         """
@@ -190,27 +215,19 @@ class CtpTraderGateway(TdApi):
         else:
             self.auth_status = False
 
-    def onRspUserPasswordUpdate(self, data, error, n, last):
-        """"""
-        raise NotImplementedError
-
-    def onRspTradingAccountPasswordUpdate(self, data, error, n, last):
-        """"""
-        raise NotImplementedError
-
-    def query_account_info(self):
+    def query_account(self):
         """
-        查询账户当前信息
-
+        Query the basic information of account.
         """
-        request = dict()
-        request['BrokerID'] = self.broker_id
-        request['InvestorID'] = self.user_id
-
+        logger.info('[query_account] broker_id: {}, user_id: {}.'
+                    ''.format(str(self.broker_id), str(self.user_id)))
+        request = {
+            'BrokerID': self.broker_id,
+            'InvestorID': self.user_id
+        }
         logger.debug(u'发送查询账户信息的请求.[request:%s]' % request)
-        response = self.reqQryTradingAccount(request, self.next_request_id())
+        self.reqQryTradingAccount(request, self.next_request_id())
         time.sleep(0.1)
-        return response
 
     def next_request_id(self):
         """
