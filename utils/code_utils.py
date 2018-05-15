@@ -107,8 +107,8 @@ __all__ = [
 
 
 if __name__ == '__main__':
-    test_object_name = 'TestObject'
-    test_attribute_list = ['a', 'b', 'c']
+    test_object_name = 'TradeResponse'
+    test_attribute_list = ['trade_type', 'trader_id', 'hedge_flag', 'trade_time', 'direction', 'participant_id', 'price', 'client_id', 'volume', 'order_sys_id', 'clearing_part_id', 'instrument_id', 'exchange_id', 'settlement_id', 'user_id', 'trading_day', 'broker_id', 'offset_flag', 'order_local_id', 'trade_id', 'trade_date', 'business_unit', 'sequence_no', 'order_ref', 'broker_order_seq', 'investor_id', 'exchange_inst_id', 'trade_source', 'price_source', 'trading_role']
     bases_list = 'ValueObject'
     test_code = generate_class_object(test_object_name, test_attribute_list,
                                       bases=bases_list, with_dump=True,

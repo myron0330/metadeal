@@ -14,7 +14,6 @@ address = data['mdAddress']
 user_id = data['userID']
 password = data['password']
 broker_id = data['brokerID']
-address = str(address)
 event_engine = EventEngine()
 market_gateway = CTPMarketGateway(user_id=user_id,
                                   password=password,

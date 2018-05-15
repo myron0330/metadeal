@@ -13,7 +13,7 @@ from ... import logger
 from ... core.clock import clock
 from ... core.schema import *
 from ... core.enum import SecuritiesType
-from ... core.market import MarketBarData
+from ... core.ctp import MarketBarData
 from lib.gateway.subscriber import MarketQuote
 from ... trade.order import PMSOrder, OrderState, OrderStateMessage
 from ... utils.linked_list_utils import Node

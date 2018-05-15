@@ -110,7 +110,7 @@ class Scheduler(object):
         """查询特定接口的持仓"""
         if gatewayName in self.gatewayDict:
             gateway = self.gatewayDict[gatewayName]
-            gateway.qryPosition()
+            gateway.query_positions()
         else:
             self.writeLog(u'接口不存在：%s' %gatewayName)        
         

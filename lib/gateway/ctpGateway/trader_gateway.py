@@ -2,13 +2,27 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
-import os
 import time
 from lib.api.ctp import *
+from lib.core.ctp import *
 from lib.configs import logger
-from lib.core.market import *
-from lib.event.event_base import *
 from . ctp_base import get_temp_path
+
+
+def generate_request_id(func):
+    """
+    Decorator: Generate request id.
+    Args:
+        func(func): function.
+
+    Returns:
+        decorator: function decorator.
+    """
+    def _decorator(self, *args, **kwargs):
+        self._generate_next_request_id()
+        return func(self, *args, **kwargs)
+
+    return _decorator
 
 
 class CtpTraderGateway(TdApi):
@@ -45,12 +59,10 @@ class CtpTraderGateway(TdApi):
     def __setattr__(self, attribute, value):
         """
         Add type mapping to some attributes.
+
         Args:
-            attribute: 
-            value: 
-
-        Returns:
-
+            attribute(string): attribute
+            value(obj): value
         """
         type_mapping = {
             'user_id': str,
@@ -93,6 +105,7 @@ class CtpTraderGateway(TdApi):
             self.createFtdcTraderApi(path)
 
             # 设置数据同步模式为推送从今日开始所有数据
+            # need set 1 when trading.
             self.subscribePrivateTopic(0)
             self.subscribePublicTopic(0)
 
@@ -215,6 +228,7 @@ class CtpTraderGateway(TdApi):
         else:
             self.auth_status = False
 
+    @generate_request_id
     def query_account(self):
         """
         Query the basic information of account.
@@ -225,66 +239,77 @@ class CtpTraderGateway(TdApi):
             'BrokerID': self.broker_id,
             'InvestorID': self.user_id
         }
-        logger.debug(u'发送查询账户信息的请求.[request:%s]' % request)
-        self.reqQryTradingAccount(request, self.next_request_id())
+        self.reqQryTradingAccount(request, self.request_id)
         time.sleep(0.1)
 
-    def next_request_id(self):
+    def onRspQryTradingAccount(self, data, error, n, last):
+        """
+        Response of the basic information of account.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+            n(unused): unused
+            last(unused): unused
+        """
+        response = AccountResponse.from_ctp(data)
+        logger.info('[onRspQryTradingAccount] {}'.format(response))
+
+    @generate_request_id
+    def query_positions(self):
+        """
+        Query positions information.
+        """
+        logger.info('[query_positions] broker_id: {}, user_id: {}.'
+                    ''.format(str(self.broker_id), str(self.user_id)))
+        request = {
+            'BrokerID': self.broker_id,
+            'InvestorID': self.user_id
+        }
+        self.reqQryInvestorPosition(request, self.request_id)
+        time.sleep(0.1)
+
+    def _generate_next_request_id(self):
         """
         Get next request id.
         """
-        return self.request_id + 1
+        self.request_id += 1
+        return self.request_id
 
-    def onRspQryTradingAccount(self, data, error, n, last):
-        """资金账户查询回报"""
-        logger.info(data)
-        # account = VtAccountData()
-        # account.gatewayName = self.gatewayName
-        #
-        # # 账户代码
-        # account.accountID = data['AccountID']
-        # account.vtAccountID = '.'.join([self.gatewayName, account.accountID])
-        #
-        # # 数值相关
-        # account.preBalance = data['PreBalance']
-        # account.available = data['Available']
-        # account.commission = data['Commission']
-        # account.margin = data['CurrMargin']
-        # account.closeProfit = data['CloseProfit']
-        # account.positionProfit = data['PositionProfit']
-        #
-        # # 这里的balance和快期中的账户不确定是否一样，需要测试
-        # account.balance = (data['PreBalance'] - data['PreCredit'] - data['PreMortgage'] +
-        #                    data['Mortgage'] - data['Withdraw'] + data['Deposit'] +
-        #                    data['CloseProfit'] + data['PositionProfit'] + data['CashIn'] -
-        #                    data['Commission'])
-        #
-        # # 推送
-        # self.gateway.onAccount(account)
+    def onRtnTrade(self, data):
+        """
+        Trade response information.
+
+        Args:
+            data(dict): response data.
+        """
+        response = TradeResponse.from_ctp(data)
+        logger.info('[onRtnTrade] {}'.format(response))
 
     def onRspOrderInsert(self, data, error, n, last):
         """发单错误（柜台）"""
         # 推送委托信息
-        order = VtOrderData()
-        order.gatewayName = self.gatewayName
-        order.symbol = data['InstrumentID']
-        order.exchange = exchangeMapReverse[data['ExchangeID']]
-        order.vtSymbol = order.symbol
-        order.orderID = data['OrderRef']
-        order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-        order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        order.status = STATUS_REJECTED
-        order.price = data['LimitPrice']
-        order.totalVolume = data['VolumeTotalOriginal']
-        self.gateway.onOrder(order)
-
-        # 推送错误信息
-        err = VtErrorData()
-        err.gatewayName = self.gatewayName
-        err.errorID = error['ErrorID']
-        err.errorMsg = error['ErrorMsg'].decode('gbk')
-        self.gateway.onError(err)
+        # order = VtOrderData()
+        # order.gatewayName = self.gatewayName
+        # order.symbol = data['InstrumentID']
+        # order.exchange = exchangeMapReverse[data['ExchangeID']]
+        # order.vtSymbol = order.symbol
+        # order.orderID = data['OrderRef']
+        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
+        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
+        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
+        # order.status = STATUS_REJECTED
+        # order.price = data['LimitPrice']
+        # order.totalVolume = data['VolumeTotalOriginal']
+        # self.gateway.onOrder(order)
+        #
+        # # 推送错误信息
+        # err = VtErrorData()
+        # err.gatewayName = self.gatewayName
+        # err.errorID = error['ErrorID']
+        # err.errorMsg = error['ErrorMsg'].decode('gbk')
+        # self.gateway.onError(err)
+        raise NotImplementedError
 
     def onRspParkedOrderInsert(self, data, error, n, last):
         """"""
@@ -296,11 +321,12 @@ class CtpTraderGateway(TdApi):
 
     def onRspOrderAction(self, data, error, n, last):
         """撤单错误（柜台）"""
-        err = VtErrorData()
-        err.gatewayName = self.gatewayName
-        err.errorID = error['ErrorID']
-        err.errorMsg = error['ErrorMsg'].decode('gbk')
-        self.gateway.onError(err)
+        # err = VtErrorData()
+        # err.gatewayName = self.gatewayName
+        # err.errorID = error['ErrorID']
+        # err.errorMsg = error['ErrorMsg'].decode('gbk')
+        # self.gateway.onError(err)
+        raise NotImplementedError
 
     def onRspQueryMaxOrderVolume(self, data, error, n, last):
         """"""
@@ -308,11 +334,12 @@ class CtpTraderGateway(TdApi):
 
     def onRspSettlementInfoConfirm(self, data, error, n, last):
         """确认结算信息回报"""
-        self.writeLog(text.SETTLEMENT_INFO_CONFIRMED)
-
-        # 查询合约代码
-        self.request_id += 1
-        self.reqQryInstrument({}, self.request_id)
+        # self.writeLog(text.SETTLEMENT_INFO_CONFIRMED)
+        #
+        # # 查询合约代码
+        # self.request_id += 1
+        # self.reqQryInstrument({}, self.request_id)
+        raise NotImplementedError
 
     def onRspRemoveParkedOrder(self, data, error, n, last):
         """"""
@@ -629,106 +656,78 @@ class CtpTraderGateway(TdApi):
     def onRtnOrder(self, data):
         """报单回报"""
         # 更新最大报单编号
-        newref = data['OrderRef']
-        self.orderRef = max(self.orderRef, int(newref))
-
-        # 创建报单数据对象
-        order = VtOrderData()
-        order.gatewayName = self.gatewayName
-
-        # 保存代码和报单号
-        order.symbol = data['InstrumentID']
-        order.exchange = exchangeMapReverse[data['ExchangeID']]
-        order.vtSymbol = order.symbol  # '.'.join([order.symbol, order.exchange])
-
-        order.orderID = data['OrderRef']
-        # CTP的报单号一致性维护需要基于frontID, sessionID, orderID三个字段
-        # 但在本接口设计中，已经考虑了CTP的OrderRef的自增性，避免重复
-        # 唯一可能出现OrderRef重复的情况是多处登录并在非常接近的时间内（几乎同时发单）
-        # 考虑到VtTrader的应用场景，认为以上情况不会构成问题
-        order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-
-        order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        order.status = statusMapReverse.get(data['OrderStatus'], STATUS_UNKNOWN)
-
-        # 价格、报单量等数值
-        order.price = data['LimitPrice']
-        order.totalVolume = data['VolumeTotalOriginal']
-        order.tradedVolume = data['VolumeTraded']
-        order.orderTime = data['InsertTime']
-        order.cancelTime = data['CancelTime']
-        order.frontID = data['FrontID']
-        order.sessionID = data['SessionID']
-
-        # 推送
-        self.gateway.onOrder(order)
-
-    def onRtnTrade(self, data):
-        """成交回报"""
-        # 创建报单数据对象
-        trade = VtTradeData()
-        trade.gatewayName = self.gatewayName
-
-        # 保存代码和报单号
-        trade.symbol = data['InstrumentID']
-        trade.exchange = exchangeMapReverse[data['ExchangeID']]
-        trade.vtSymbol = trade.symbol  # '.'.join([trade.symbol, trade.exchange])
-
-        trade.tradeID = data['TradeID']
-        trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
-
-        trade.orderID = data['OrderRef']
-        trade.vtOrderID = '.'.join([self.gatewayName, trade.orderID])
-
-        # 方向
-        trade.direction = directionMapReverse.get(data['Direction'], '')
-
-        # 开平
-        trade.offset = offsetMapReverse.get(data['OffsetFlag'], '')
-
-        # 价格、报单量等数值
-        trade.price = data['Price']
-        trade.volume = data['Volume']
-        trade.tradeTime = data['TradeTime']
-
-        # 推送
-        self.gateway.onTrade(trade)
+        # newref = data['OrderRef']
+        # self.orderRef = max(self.orderRef, int(newref))
+        #
+        # # 创建报单数据对象
+        # order = VtOrderData()
+        # order.gatewayName = self.gatewayName
+        #
+        # # 保存代码和报单号
+        # order.symbol = data['InstrumentID']
+        # order.exchange = exchangeMapReverse[data['ExchangeID']]
+        # order.vtSymbol = order.symbol  # '.'.join([order.symbol, order.exchange])
+        #
+        # order.orderID = data['OrderRef']
+        # # CTP的报单号一致性维护需要基于frontID, sessionID, orderID三个字段
+        # # 但在本接口设计中，已经考虑了CTP的OrderRef的自增性，避免重复
+        # # 唯一可能出现OrderRef重复的情况是多处登录并在非常接近的时间内（几乎同时发单）
+        # # 考虑到VtTrader的应用场景，认为以上情况不会构成问题
+        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
+        #
+        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
+        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
+        # order.status = statusMapReverse.get(data['OrderStatus'], STATUS_UNKNOWN)
+        #
+        # # 价格、报单量等数值
+        # order.price = data['LimitPrice']
+        # order.totalVolume = data['VolumeTotalOriginal']
+        # order.tradedVolume = data['VolumeTraded']
+        # order.orderTime = data['InsertTime']
+        # order.cancelTime = data['CancelTime']
+        # order.frontID = data['FrontID']
+        # order.sessionID = data['SessionID']
+        # # 推送
+        # self.gateway.onOrder(order)
+        pass
 
     def onErrRtnOrderInsert(self, data, error):
         """发单错误回报（交易所）"""
         # 推送委托信息
-        order = VtOrderData()
-        order.gatewayName = self.gatewayName
-        order.symbol = data['InstrumentID']
-        order.exchange = exchangeMapReverse[data['ExchangeID']]
-        order.vtSymbol = order.symbol
-        order.orderID = data['OrderRef']
-        order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-        order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        order.status = STATUS_REJECTED
-        order.price = data['LimitPrice']
-        order.totalVolume = data['VolumeTotalOriginal']
-        self.gateway.onOrder(order)
-
-        # 推送错误信息
-        err = VtErrorData()
-        err.gatewayName = self.gatewayName
-        err.errorID = error['ErrorID']
-        err.errorMsg = error['ErrorMsg'].decode('gbk')
-        self.gateway.onError(err)
+        # order = VtOrderData()
+        # order.gatewayName = self.gatewayName
+        # order.symbol = data['InstrumentID']
+        # order.exchange = exchangeMapReverse[data['ExchangeID']]
+        # order.vtSymbol = order.symbol
+        # order.orderID = data['OrderRef']
+        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
+        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
+        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
+        # order.status = STATUS_REJECTED
+        # order.price = data['LimitPrice']
+        # order.totalVolume = data['VolumeTotalOriginal']
+        # self.gateway.onOrder(order)
+        #
+        # # 推送错误信息
+        # err = VtErrorData()
+        # err.gatewayName = self.gatewayName
+        # err.errorID = error['ErrorID']
+        # err.errorMsg = error['ErrorMsg'].decode('gbk')
+        # self.gateway.onError(err)
+        raise NotImplementedError
 
     def onErrRtnOrderAction(self, data, error):
         """撤单错误回报（交易所）"""
-        err = VtErrorData()
-        err.gatewayName = self.gatewayName
-        err.errorID = error['ErrorID']
-        err.errorMsg = error['ErrorMsg'].decode('gbk')
-        self.gateway.onError(err)
+        # err = VtErrorData()
+        # err.gatewayName = self.gatewayName
+        # err.errorID = error['ErrorID']
+        # err.errorMsg = error['ErrorMsg'].decode('gbk')
+        # self.gateway.onError(err)
+        raise NotImplementedError
 
     def onRtnInstrumentStatus(self, data):
         """"""
+        # logger.info(data)
         pass
 
     def onRtnTradingNotice(self, data):
@@ -911,14 +910,6 @@ class CtpTraderGateway(TdApi):
         """查询账户"""
         self.request_id += 1
         self.reqQryTradingAccount({}, self.request_id)
-
-    def qryPosition(self):
-        """查询持仓"""
-        self.request_id += 1
-        req = {}
-        req['BrokerID'] = self.broker_id
-        req['InvestorID'] = self.user_id
-        self.reqQryInvestorPosition(req, self.request_id)
 
     def sendOrder(self, orderReq):
         """发单"""

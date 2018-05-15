@@ -6,7 +6,7 @@ import os
 import time
 from lib.api.ctp import *
 from lib.configs import logger
-from lib.core.market import *
+from lib.core.ctp import *
 from lib.event.event_base import *
 from . ctp_base import get_temp_path
 
@@ -34,6 +34,25 @@ class CTPMarketGateway(MdApi):
         self.auth_status = False
         self.user_product_info = None
         self.session_id = None
+
+    def __setattr__(self, attribute, value):
+        """
+        Add type mapping to some attributes.
+
+        Args:
+            attribute(string): attribute
+            value(obj): value
+        """
+        type_mapping = {
+            'user_id': str,
+            'password': str,
+            'broker_id': str,
+            'address': str
+        }
+        if attribute in type_mapping:
+            object.__setattr__(self, attribute, type_mapping[attribute](value))
+        else:
+            object.__setattr__(self, attribute, value)
 
     def connect(self, user_id=None, password=None, broker_id=None, address=None):
         """
