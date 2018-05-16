@@ -9,6 +9,22 @@ from lib.configs import logger
 from . ctp_base import get_temp_path
 
 
+ORDER_TYPE_MAP = {
+    'market': '1',
+    'limit': '2'
+}
+
+
+DIRECTION_OFFSET_MAP = {
+    (1, 'open'): ('0', '0'),
+    (1, 'close'): ('0', '1'),
+    (1, 'close_today'): ('0', '2'),
+    (-1, 'open'): ('1', '0'),
+    (-1, 'close'): ('1', '1'),
+    (-1, 'close_today'): ('1', '2')
+}
+
+
 def generate_request_id(func):
     """
     Decorator: Generate request id.
@@ -39,8 +55,6 @@ class CtpTraderGateway(TdApi):
         self.event_engine = event_engine
 
         self.request_id = request_id
-        self.orderRef = None
-
         self.connection_status = False
         self.login_status = False
         self.auth_status = False
@@ -203,6 +217,67 @@ class CtpTraderGateway(TdApi):
         self.reqQryInvestorPosition(request, self.request_id)
         time.sleep(0.1)
 
+    @generate_request_id
+    def send_order(self, order):
+        """
+        Send order to CTP.
+
+        Args:
+            order(obj): order obj
+
+        Returns:
+            string: order id
+        """
+        order_id = order.order_id
+        order_type = order.order_type
+        limit_price = float(order.order_price) if order_type != 'market' else float(0)
+        direction, offset_flag = DIRECTION_OFFSET_MAP.get((order.direction, order.offset_flag), ('1', '1'))
+        assert order_id, 'Invalid order id.'
+        request = dict()
+        request['InstrumentID'] = order.symbol
+        request['LimitPrice'] = limit_price
+        request['VolumeTotalOriginal'] = abs(order.order_amount)
+        request['OrderPriceType'] = ORDER_TYPE_MAP.get(order_type, '1')
+        request['Direction'] = direction
+        request['CombOffsetFlag'] = offset_flag
+        request['OrderRef'] = str(order_id)
+        request['InvestorID'] = str(self.user_id)
+        request['UserID'] = str(self.user_id)
+        request['BrokerID'] = str(self.broker_id)
+        request['CombHedgeFlag'] = defineDict['THOST_FTDC_HF_Speculation']  # 投机单
+        request['ContingentCondition'] = defineDict['THOST_FTDC_CC_Immediately']  # 立即发单
+        request['ForceCloseReason'] = defineDict['THOST_FTDC_FCC_NotForceClose']  # 非强平
+        request['IsAutoSuspend'] = 0  # 非自动挂起
+        request['TimeCondition'] = defineDict['THOST_FTDC_TC_GFD']  # 今日有效
+        request['VolumeCondition'] = defineDict['THOST_FTDC_VC_AV']  # 任意成交量
+        request['MinVolume'] = 1  # 最小成交量为1
+
+        logger.info('[send_order] request_id: {}, order_id: {}, request: {}'.format(self.request_id, order_id, request))
+        self.reqOrderInsert(request, self.request_id)
+        return order_id
+
+    @generate_request_id
+    def cancel_order(self, cancelOrderReq):
+        """
+        Cancel order.
+        Args:
+            cancelOrderReq:
+
+        Returns:
+
+        """
+        self.request_id += 1
+        request = dict()
+        request['InstrumentID'] = cancelOrderReq.symbol
+        request['ExchangeID'] = cancelOrderReq.exchange
+        request['OrderRef'] = cancelOrderReq.orderID
+        request['FrontID'] = cancelOrderReq.frontID
+        request['SessionID'] = cancelOrderReq.sessionID
+        request['ActionFlag'] = defineDict['THOST_FTDC_AF_Delete']
+        request['BrokerID'] = self.broker_id
+        request['InvestorID'] = self.user_id
+        self.reqOrderAction(request, self.request_id)
+
     def onFrontConnected(self):
         """
         Server connected.
@@ -351,7 +426,9 @@ class CtpTraderGateway(TdApi):
         # err.errorID = error['ErrorID']
         # err.errorMsg = error['ErrorMsg'].decode('gbk')
         # self.gateway.onError(err)
-        raise NotImplementedError
+        print data
+        print error
+        # raise NotImplementedError
 
     def onRspOrderAction(self, data, error, n, last):
         """撤单错误（柜台）"""
@@ -726,6 +803,8 @@ class CtpTraderGateway(TdApi):
 
     def onErrRtnOrderInsert(self, data, error):
         """发单错误回报（交易所）"""
+
+        # print data
         # 推送委托信息
         # order = VtOrderData()
         # order.gatewayName = self.gatewayName
@@ -747,7 +826,6 @@ class CtpTraderGateway(TdApi):
         # err.errorID = error['ErrorID']
         # err.errorMsg = error['ErrorMsg'].decode('gbk')
         # self.gateway.onError(err)
-        raise NotImplementedError
 
     def onErrRtnOrderAction(self, data, error):
         """撤单错误回报（交易所）"""
@@ -944,68 +1022,6 @@ class CtpTraderGateway(TdApi):
         self.request_id += 1
         self.reqQryTradingAccount({}, self.request_id)
 
-    def sendOrder(self, orderReq):
-        """发单"""
-        self.request_id += 1
-        self.orderRef += 1
-
-        req = {}
-
-        req['InstrumentID'] = orderReq.symbol
-        req['LimitPrice'] = orderReq.price
-        req['VolumeTotalOriginal'] = orderReq.volume
-
-        # 下面如果由于传入的类型本接口不支持，则会返回空字符串
-        req['OrderPriceType'] = priceTypeMap.get(orderReq.priceType, '')
-        req['Direction'] = directionMap.get(orderReq.direction, '')
-        req['CombOffsetFlag'] = offsetMap.get(orderReq.offset, '')
-
-        req['OrderRef'] = str(self.orderRef)
-        req['InvestorID'] = self.user_id
-        req['UserID'] = self.user_id
-        req['BrokerID'] = self.broker_id
-
-        req['CombHedgeFlag'] = defineDict['THOST_FTDC_HF_Speculation']  # 投机单
-        req['ContingentCondition'] = defineDict['THOST_FTDC_CC_Immediately']  # 立即发单
-        req['ForceCloseReason'] = defineDict['THOST_FTDC_FCC_NotForceClose']  # 非强平
-        req['IsAutoSuspend'] = 0  # 非自动挂起
-        req['TimeCondition'] = defineDict['THOST_FTDC_TC_GFD']  # 今日有效
-        req['VolumeCondition'] = defineDict['THOST_FTDC_VC_AV']  # 任意成交量
-        req['MinVolume'] = 1  # 最小成交量为1
-
-        # 判断FAK和FOK
-        if orderReq.priceType == PRICETYPE_FAK:
-            req['OrderPriceType'] = defineDict["THOST_FTDC_OPT_LimitPrice"]
-            req['TimeCondition'] = defineDict['THOST_FTDC_TC_IOC']
-            req['VolumeCondition'] = defineDict['THOST_FTDC_VC_AV']
-        if orderReq.priceType == PRICETYPE_FOK:
-            req['OrderPriceType'] = defineDict["THOST_FTDC_OPT_LimitPrice"]
-            req['TimeCondition'] = defineDict['THOST_FTDC_TC_IOC']
-            req['VolumeCondition'] = defineDict['THOST_FTDC_VC_CV']
-
-        self.reqOrderInsert(req, self.request_id)
-
-        # 返回订单号（字符串），便于某些算法进行动态管理
-        vtOrderID = '.'.join([self.gatewayName, str(self.orderRef)])
-        return vtOrderID
-
-    def cancelOrder(self, cancelOrderReq):
-        """撤单"""
-        self.request_id += 1
-
-        req = {}
-
-        req['InstrumentID'] = cancelOrderReq.symbol
-        req['ExchangeID'] = cancelOrderReq.exchange
-        req['OrderRef'] = cancelOrderReq.orderID
-        req['FrontID'] = cancelOrderReq.frontID
-        req['SessionID'] = cancelOrderReq.sessionID
-
-        req['ActionFlag'] = defineDict['THOST_FTDC_AF_Delete']
-        req['BrokerID'] = self.broker_id
-        req['InvestorID'] = self.user_id
-
-        self.reqOrderAction(req, self.request_id)
 
     def close(self):
         """关闭"""

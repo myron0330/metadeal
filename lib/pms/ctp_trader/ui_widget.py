@@ -569,7 +569,7 @@ class OrderMonitor(BasicMonitor):
         req.frontID = order.frontID
         req.sessionID = order.sessionID
         req.orderID = order.orderID
-        self.mainEngine.cancelOrder(req, order.gatewayName)
+        self.mainEngine.cancel_order(req, order.gatewayName)
 
 
 ########################################################################
@@ -1018,7 +1018,7 @@ class TradingWidget(QtGui.QFrame):
         req.currency = currency
         req.productClass = productClass
         
-        self.mainEngine.sendOrder(req, gatewayName)
+        self.mainEngine.send_order(req, gatewayName)
             
     #----------------------------------------------------------------------
     def cancelAll(self):
@@ -1031,7 +1031,7 @@ class TradingWidget(QtGui.QFrame):
             req.frontID = order.frontID
             req.sessionID = order.sessionID
             req.orderID = order.orderID
-            self.mainEngine.cancelOrder(req, order.gatewayName)
+            self.mainEngine.cancel_order(req, order.gatewayName)
             
     #----------------------------------------------------------------------
     def closePosition(self, cell):

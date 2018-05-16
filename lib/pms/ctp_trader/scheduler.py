@@ -83,7 +83,7 @@ class Scheduler(object):
         
         if gatewayName in self.gatewayDict:
             gateway = self.gatewayDict[gatewayName]
-            return gateway.sendOrder(orderReq)
+            return gateway.send_order(orderReq)
         else:
             self.writeLog(u'接口不存在：%s' %gatewayName)        
     
@@ -92,7 +92,7 @@ class Scheduler(object):
         """对特定接口撤单"""
         if gatewayName in self.gatewayDict:
             gateway = self.gatewayDict[gatewayName]
-            gateway.cancelOrder(cancelOrderReq)
+            gateway.cancel_order(cancelOrderReq)
         else:
             self.writeLog(u'接口不存在：%s' %gatewayName)        
         

@@ -142,7 +142,7 @@ class CtaEngine(object):
                 else:
                     req.offset = OFFSET_CLOSE
         
-        vtOrderID = self._main_engine.sendOrder(req, contract.gatewayName)    # 发单
+        vtOrderID = self._main_engine.send_order(req, contract.gatewayName)    # 发单
         self.order_manager_collections[vtOrderID] = strategy        # 保存vtOrderID和策略的映射关系
 
         self.writeCtaLog(u'策略%s发送委托，%s，%s，%s@%s' 
@@ -167,7 +167,7 @@ class CtaEngine(object):
                 req.frontID = order.frontID
                 req.sessionID = order.sessionID
                 req.orderID = order.orderID
-                self._main_engine.cancelOrder(req, order.gatewayName)
+                self._main_engine.cancel_order(req, order.gatewayName)
 
     #----------------------------------------------------------------------
     def sendStopOrder(self, vtSymbol, orderType, price, volume, strategy):

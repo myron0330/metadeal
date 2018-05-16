@@ -3,11 +3,12 @@
 #     File:
 # **********************************************************************************#
 import json
-
 from lib.event.event_base import EventType
 from lib.event.event_engine import EventEngine
 from lib.gateway.ctpGateway.trader_gateway import CtpTraderGateway
 from lib.gateway.strategy_gateway import StrategyGateway
+from lib.trade.order import Order
+
 
 data = json.load(open('CTP_connect.json', 'r+'))
 address = data['tdAddress']
@@ -28,4 +29,5 @@ trader_gateway.query_account()
 import time
 time.sleep(1)
 trader_gateway.query_positions()
-trader_gateway.query_position_detail()
+order = Order(symbol='i1809', amount=-5, offset_flag='close', order_type='market', order_time='2018-05-16')
+trader_gateway.send_order(order)

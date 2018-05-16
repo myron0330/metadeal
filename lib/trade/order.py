@@ -118,25 +118,26 @@ class Order(BaseOrder):
     Order instance.
     """
     __cur_date__, __max_order_id__ = None, 1
+    known_order_ids = set()
 
     __slots__ = [
-        '_portfolio_id',
-        '_order_id',
-        '_symbol',
-        '_order_amount',
-        '_filled_amount',
-        '_order_time',
-        '_filled_time',
-        '_order_type',
-        '_price',
-        '_transact_price',
-        '_turnover_value',
-        '_direction',
-        '_offset_flag',
-        '_commission',
-        '_slippage',
-        '_state',
-        '_state_message',
+        'portfolio_id',
+        'order_id',
+        'symbol',
+        'order_amount',
+        'filled_amount',
+        'order_time',
+        'filled_time',
+        'order_type',
+        'price',
+        'transact_price',
+        'turnover_value',
+        'direction',
+        'offset_flag',
+        'commission',
+        'slippage',
+        'state',
+        'state_message',
     ]
 
     def __getstate__(self):
@@ -155,27 +156,33 @@ class Order(BaseOrder):
                  **kwargs):
         super(Order, self).__init__(symbol=symbol, order_amount=amount, order_time=order_time,
                                     order_type=order_type, price=price)
-        self._order_id = order_id if order_id is not None else str(uuid1())
-        self._portfolio_id = portfolio_id
-        self._direction = direction if direction is not None else amount/abs(amount) if amount != 0 else 0
-        self._turnover_value = 0.
-        self._offset_flag = offset_flag or 'open' if np.sign(amount) == 1 else 'close'
+        self.order_id = order_id if order_id is not None else self.generate_order_id(order_time=order_time)
+        self.portfolio_id = portfolio_id
+        self.direction = direction if direction is not None else amount / abs(amount) if amount != 0 else 0
+        self.turnover_value = 0.
+        self.offset_flag = offset_flag or ('open' if np.sign(amount) == 1 else 'close')
 
-    @property
-    def offset_flag(self):
-        return self._offset_flag
-
-    @property
-    def order_type(self):
-        return self._order_type
-
-    @property
-    def turnover_value(self):
-        return self._turnover_value
-
-    @property
-    def portfolio_id(self):
-        return self._portfolio_id
+    @classmethod
+    def generate_order_id(cls, order_time, generated_id=None):
+        """
+        Generate order id.
+        Args:
+            order_time(string): order time
+            generated_id(string): generate id
+        """
+        _get_date_hash = (lambda x: x[:10])
+        order_date = _get_date_hash(order_time)
+        if order_date != cls.__cur_date__:
+            cls.__cur_date__ = order_date
+            cls.__max_order_id__ = 1
+        if generated_id is None:
+            generated_id = '%07d' % (cls.__max_order_id__,)
+            while generated_id in cls.known_order_ids:
+                cls.__max_order_id__ += 1
+                generated_id = '%07d' % (cls.__max_order_id__,)
+            cls.__max_order_id__ += 1
+        cls.known_order_ids.add(generated_id)
+        return generated_id
 
     def to_dict(self):
         """
@@ -208,10 +215,10 @@ class Order(BaseOrder):
         order._state_message = query_data['state_message']
         order._commission = query_data['commission']
         order._slippage = query_data['slippage']
-        order._turnover_value = query_data['turnover_value']
+        order.turnover_value = query_data['turnover_value']
         order._filled_amount = query_data['filled_amount']
         order._transact_price = query_data['transact_price']
-        order._direction = query_data.get('direction', 1)
+        order.direction = query_data.get('direction', 1)
         return order
 
     @property

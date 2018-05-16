@@ -108,7 +108,7 @@ class CtaTemplate(object):
             if stop:
                 vtOrderID = self.ctaEngine.sendStopOrder(self.vtSymbol, orderType, price, volume, self)
             else:
-                vtOrderID = self.ctaEngine.sendOrder(self.vtSymbol, orderType, price, volume, self) 
+                vtOrderID = self.ctaEngine.send_order(self.vtSymbol, orderType, price, volume, self)
             return vtOrderID
         else:
             # 交易停止时发单返回空字符串
@@ -123,7 +123,7 @@ class CtaTemplate(object):
         if STOPORDERPREFIX in vtOrderID:
             self.ctaEngine.cancelStopOrder(vtOrderID)
         else:
-            self.ctaEngine.cancelOrder(vtOrderID)
+            self.ctaEngine.cancel_order(vtOrderID)
     
     def insertTick(self, tick):
         """向数据库中插入tick数据"""
