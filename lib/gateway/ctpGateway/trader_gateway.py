@@ -120,8 +120,8 @@ class CtpTraderGateway(TdApi):
 
             # 设置数据同步模式为推送从今日开始所有数据
             # need set 1 when trading.
-            self.subscribePrivateTopic(0)
-            self.subscribePublicTopic(0)
+            self.subscribePrivateTopic(1)
+            self.subscribePublicTopic(1)
 
             self.registerFront(self.address)
             self.init()
@@ -396,48 +396,146 @@ class CtpTraderGateway(TdApi):
         response = PositionResponse.from_ctp(data)
         logger.info('[onRspQryInvestorPosition] {}'.format(response))
 
+    def onRspOrderInsert(self, data, error, n, last):
+        """
+        Response of order message.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+            n(unused): unused
+            last(unused): unused
+        """
+        logger.info('[onRspOrderInsert] {}'.format(data))
+
+    def onRspOrderAction(self, data, error, n, last):
+        """
+        Response of cancel order message.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+            n(unused): unused
+            last(unused): unused
+        """
+        logger.info('[onRspOrderAction] {}'.format(data))
+
+    def onRspQryInstrument(self, data, error, n, last):
+        """
+        Response of query instrument symbol.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+            n(unused): unused
+            last(unused): unused
+        """
+        contract = VtContractData()
+        contract.gatewayName = self.gatewayName
+
+        contract.symbol = data['InstrumentID']
+        contract.exchange = exchangeMapReverse[data['ExchangeID']]
+        contract.vtSymbol = contract.symbol  # '.'.join([contract.symbol, contract.exchange])
+        contract.name = data['InstrumentName'].decode('GBK')
+
+        # 合约数值
+        contract.size = data['VolumeMultiple']
+        contract.priceTick = data['PriceTick']
+        contract.strikePrice = data['StrikePrice']
+        contract.productClass = productClassMapReverse.get(data['ProductClass'], PRODUCT_UNKNOWN)
+        contract.expiryDate = data['ExpireDate']
+
+        # ETF期权的标的命名方式需要调整（ETF代码 + 到期月份）
+        if contract.exchange in [EXCHANGE_SSE, EXCHANGE_SZSE]:
+            contract.underlyingSymbol = '-'.join([data['UnderlyingInstrID'], str(data['ExpireDate'])[2:-2]])
+        # 商品期权无需调整
+        else:
+            contract.underlyingSymbol = data['UnderlyingInstrID']
+
+            # 期权类型
+        if contract.productClass is PRODUCT_OPTION:
+            if data['OptionsType'] == '1':
+                contract.optionType = OPTION_CALL
+            elif data['OptionsType'] == '2':
+                contract.optionType = OPTION_PUT
+
+        # 缓存代码和交易所的印射关系
+        self.symbolExchangeDict[contract.symbol] = contract.exchange
+        self.symbolSizeDict[contract.symbol] = contract.size
+
+        # 推送
+        self.gateway.onContract(contract)
+
+        # 缓存合约代码和交易所映射
+        symbolExchangeDict[contract.symbol] = contract.exchange
+
+        if last:
+            self.writeLog(text.CONTRACT_DATA_RECEIVED)
+
+    def onRtnOrder(self, data):
+        """报单回报"""
+        # 更新最大报单编号
+        # newref = data['OrderRef']
+        # self.orderRef = max(self.orderRef, int(newref))
+        #
+        # # 创建报单数据对象
+        # order = VtOrderData()
+        # order.gatewayName = self.gatewayName
+        #
+        # # 保存代码和报单号
+        # order.symbol = data['InstrumentID']
+        # order.exchange = exchangeMapReverse[data['ExchangeID']]
+        # order.vtSymbol = order.symbol  # '.'.join([order.symbol, order.exchange])
+        #
+        # order.orderID = data['OrderRef']
+        # # CTP的报单号一致性维护需要基于frontID, sessionID, orderID三个字段
+        # # 但在本接口设计中，已经考虑了CTP的OrderRef的自增性，避免重复
+        # # 唯一可能出现OrderRef重复的情况是多处登录并在非常接近的时间内（几乎同时发单）
+        # # 考虑到VtTrader的应用场景，认为以上情况不会构成问题
+        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
+        #
+        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
+        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
+        # order.status = statusMapReverse.get(data['OrderStatus'], STATUS_UNKNOWN)
+        #
+        # # 价格、报单量等数值
+        # order.price = data['LimitPrice']
+        # order.totalVolume = data['VolumeTotalOriginal']
+        # order.tradedVolume = data['VolumeTraded']
+        # order.orderTime = data['InsertTime']
+        # order.cancelTime = data['CancelTime']
+        # order.frontID = data['FrontID']
+        # order.sessionID = data['SessionID']
+        # # 推送
+        # self.gateway.onOrder(order)
+        pass
+
+    def onErrRtnOrderInsert(self, data, error):
+        """
+        Response of order error message.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+        """
+        logger.info('[onErrRspOrderInsert] {}'.format(data))
+
+    def onErrRtnOrderAction(self, data, error):
+        """
+        Response of cancel order error message.
+
+        Args:
+            data(dict): response data
+            error(dict): error data
+        """
+        logger.info('[onErrRspOrderAction] {}'.format(data))
+
     def _generate_next_request_id(self):
         """
         Get next request id.
         """
         self.request_id += 1
         return self.request_id
-
-    def onRspOrderInsert(self, data, error, n, last):
-        """发单错误（柜台）"""
-        # 推送委托信息
-        # order = VtOrderData()
-        # order.gatewayName = self.gatewayName
-        # order.symbol = data['InstrumentID']
-        # order.exchange = exchangeMapReverse[data['ExchangeID']]
-        # order.vtSymbol = order.symbol
-        # order.orderID = data['OrderRef']
-        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        # order.status = STATUS_REJECTED
-        # order.price = data['LimitPrice']
-        # order.totalVolume = data['VolumeTotalOriginal']
-        # self.gateway.onOrder(order)
-        #
-        # # 推送错误信息
-        # err = VtErrorData()
-        # err.gatewayName = self.gatewayName
-        # err.errorID = error['ErrorID']
-        # err.errorMsg = error['ErrorMsg'].decode('gbk')
-        # self.gateway.onError(err)
-        print data
-        print error
-        # raise NotImplementedError
-
-    def onRspOrderAction(self, data, error, n, last):
-        """撤单错误（柜台）"""
-        # err = VtErrorData()
-        # err.gatewayName = self.gatewayName
-        # err.errorID = error['ErrorID']
-        # err.errorMsg = error['ErrorMsg'].decode('gbk')
-        # self.gateway.onError(err)
-        raise NotImplementedError
 
     def onRspParkedOrderInsert(self, data, error, n, last):
         """"""
@@ -594,50 +692,6 @@ class CtpTraderGateway(TdApi):
         """"""
         pass
 
-    def onRspQryInstrument(self, data, error, n, last):
-        """合约查询回报"""
-        contract = VtContractData()
-        contract.gatewayName = self.gatewayName
-
-        contract.symbol = data['InstrumentID']
-        contract.exchange = exchangeMapReverse[data['ExchangeID']]
-        contract.vtSymbol = contract.symbol  # '.'.join([contract.symbol, contract.exchange])
-        contract.name = data['InstrumentName'].decode('GBK')
-
-        # 合约数值
-        contract.size = data['VolumeMultiple']
-        contract.priceTick = data['PriceTick']
-        contract.strikePrice = data['StrikePrice']
-        contract.productClass = productClassMapReverse.get(data['ProductClass'], PRODUCT_UNKNOWN)
-        contract.expiryDate = data['ExpireDate']
-
-        # ETF期权的标的命名方式需要调整（ETF代码 + 到期月份）
-        if contract.exchange in [EXCHANGE_SSE, EXCHANGE_SZSE]:
-            contract.underlyingSymbol = '-'.join([data['UnderlyingInstrID'], str(data['ExpireDate'])[2:-2]])
-        # 商品期权无需调整
-        else:
-            contract.underlyingSymbol = data['UnderlyingInstrID']
-
-            # 期权类型
-        if contract.productClass is PRODUCT_OPTION:
-            if data['OptionsType'] == '1':
-                contract.optionType = OPTION_CALL
-            elif data['OptionsType'] == '2':
-                contract.optionType = OPTION_PUT
-
-        # 缓存代码和交易所的印射关系
-        self.symbolExchangeDict[contract.symbol] = contract.exchange
-        self.symbolSizeDict[contract.symbol] = contract.size
-
-        # 推送
-        self.gateway.onContract(contract)
-
-        # 缓存合约代码和交易所映射
-        symbolExchangeDict[contract.symbol] = contract.exchange
-
-        if last:
-            self.writeLog(text.CONTRACT_DATA_RECEIVED)
-
     def onRspQryDepthMarketData(self, data, error, n, last):
         """"""
         pass
@@ -652,7 +706,6 @@ class CtpTraderGateway(TdApi):
 
     def onRspQryInvestorPositionDetail(self, data, error, n, last):
         """"""
-        logger.info(data)
         pass
 
     def onRspQryNotice(self, data, error, n, last):
@@ -762,79 +815,6 @@ class CtpTraderGateway(TdApi):
         err.errorID = error['ErrorID']
         err.errorMsg = error['ErrorMsg'].decode('gbk')
         self.gateway.onError(err)
-
-    def onRtnOrder(self, data):
-        """报单回报"""
-        # 更新最大报单编号
-        # newref = data['OrderRef']
-        # self.orderRef = max(self.orderRef, int(newref))
-        #
-        # # 创建报单数据对象
-        # order = VtOrderData()
-        # order.gatewayName = self.gatewayName
-        #
-        # # 保存代码和报单号
-        # order.symbol = data['InstrumentID']
-        # order.exchange = exchangeMapReverse[data['ExchangeID']]
-        # order.vtSymbol = order.symbol  # '.'.join([order.symbol, order.exchange])
-        #
-        # order.orderID = data['OrderRef']
-        # # CTP的报单号一致性维护需要基于frontID, sessionID, orderID三个字段
-        # # 但在本接口设计中，已经考虑了CTP的OrderRef的自增性，避免重复
-        # # 唯一可能出现OrderRef重复的情况是多处登录并在非常接近的时间内（几乎同时发单）
-        # # 考虑到VtTrader的应用场景，认为以上情况不会构成问题
-        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-        #
-        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        # order.status = statusMapReverse.get(data['OrderStatus'], STATUS_UNKNOWN)
-        #
-        # # 价格、报单量等数值
-        # order.price = data['LimitPrice']
-        # order.totalVolume = data['VolumeTotalOriginal']
-        # order.tradedVolume = data['VolumeTraded']
-        # order.orderTime = data['InsertTime']
-        # order.cancelTime = data['CancelTime']
-        # order.frontID = data['FrontID']
-        # order.sessionID = data['SessionID']
-        # # 推送
-        # self.gateway.onOrder(order)
-        pass
-
-    def onErrRtnOrderInsert(self, data, error):
-        """发单错误回报（交易所）"""
-
-        # print data
-        # 推送委托信息
-        # order = VtOrderData()
-        # order.gatewayName = self.gatewayName
-        # order.symbol = data['InstrumentID']
-        # order.exchange = exchangeMapReverse[data['ExchangeID']]
-        # order.vtSymbol = order.symbol
-        # order.orderID = data['OrderRef']
-        # order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
-        # order.direction = directionMapReverse.get(data['Direction'], DIRECTION_UNKNOWN)
-        # order.offset = offsetMapReverse.get(data['CombOffsetFlag'], OFFSET_UNKNOWN)
-        # order.status = STATUS_REJECTED
-        # order.price = data['LimitPrice']
-        # order.totalVolume = data['VolumeTotalOriginal']
-        # self.gateway.onOrder(order)
-        #
-        # # 推送错误信息
-        # err = VtErrorData()
-        # err.gatewayName = self.gatewayName
-        # err.errorID = error['ErrorID']
-        # err.errorMsg = error['ErrorMsg'].decode('gbk')
-        # self.gateway.onError(err)
-
-    def onErrRtnOrderAction(self, data, error):
-        """撤单错误回报（交易所）"""
-        # err = VtErrorData()
-        # err.gatewayName = self.gatewayName
-        # err.errorID = error['ErrorID']
-        # err.errorMsg = error['ErrorMsg'].decode('gbk')
-        # self.gateway.onError(err)
-        raise NotImplementedError
 
     def onRtnInstrumentStatus(self, data):
         """"""
