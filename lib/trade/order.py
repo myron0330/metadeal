@@ -158,7 +158,7 @@ class Order(BaseOrder):
                                     order_type=order_type, price=price)
         self.order_id = order_id if order_id is not None else self.generate_order_id(order_time=order_time)
         self.portfolio_id = portfolio_id
-        self.direction = direction if direction is not None else amount / abs(amount) if amount != 0 else 0
+        self.direction = direction if direction is not None else (amount / abs(amount) if amount != 0 else 0)
         self.turnover_value = 0.
         self.offset_flag = offset_flag or ('open' if np.sign(amount) == 1 else 'close')
 
