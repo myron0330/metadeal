@@ -29,6 +29,6 @@ trader_gateway.query_account()
 import time
 time.sleep(1)
 trader_gateway.query_positions()
-order = Order(symbol='i1809', amount=-5, offset_flag='open', order_type='market', order_time='2018-05-16')
+order = Order(symbol='i1809', order_amount=-5, offset_flag='open', order_type='market', order_time='2018-05-16')
 trader_gateway.send_order(order)
 time.sleep(1)

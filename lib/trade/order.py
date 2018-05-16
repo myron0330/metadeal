@@ -151,16 +151,16 @@ class Order(BaseOrder):
         for slot, value in state.items():
             setattr(self, slot, value)
 
-    def __init__(self, symbol, amount, order_time=None, order_type='market', price=0.,
+    def __init__(self, symbol, order_amount, order_time=None, order_type='market', price=0.,
                  portfolio_id=None, order_id=None, offset_flag=None, direction=None,
                  **kwargs):
-        super(Order, self).__init__(symbol=symbol, order_amount=amount, order_time=order_time,
+        super(Order, self).__init__(symbol=symbol, order_amount=order_amount, order_time=order_time,
                                     order_type=order_type, price=price)
         self.order_id = order_id if order_id is not None else self.generate_order_id(order_time=order_time)
         self.portfolio_id = portfolio_id
-        self.direction = direction if direction is not None else (amount / abs(amount) if amount != 0 else 0)
+        self.direction = direction if direction is not None else (order_amount / abs(order_amount) if order_amount != 0 else 0)
         self.turnover_value = 0.
-        self.offset_flag = offset_flag or ('open' if np.sign(amount) == 1 else 'close')
+        self.offset_flag = offset_flag or ('open' if np.sign(order_amount) == 1 else 'close')
 
     @classmethod
     def generate_order_id(cls, order_time, generated_id=None):
@@ -208,17 +208,7 @@ class Order(BaseOrder):
         Args:
             query_data(dict): query database
         """
-        query_data['amount'] = query_data.pop('order_amount')
         order = cls(**query_data)
-        order._filled_time = query_data['filled_time']
-        order._state = query_data['state']
-        order._state_message = query_data['state_message']
-        order._commission = query_data['commission']
-        order._slippage = query_data['slippage']
-        order.turnover_value = query_data['turnover_value']
-        order._filled_amount = query_data['filled_amount']
-        order._transact_price = query_data['transact_price']
-        order.direction = query_data.get('direction', 1)
         return order
 
     @property
