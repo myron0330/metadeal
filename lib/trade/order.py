@@ -151,7 +151,7 @@ class Order(BaseOrder):
         for slot, value in state.items():
             setattr(self, slot, value)
 
-    def __init__(self, symbol, order_amount, order_time=None, order_type='market', price=0.,
+    def __init__(self, symbol, order_amount, order_time=None, order_type='limit', price=0.,
                  portfolio_id=None, order_id=None, offset_flag=None, direction=None,
                  **kwargs):
         super(Order, self).__init__(symbol=symbol, order_amount=order_amount, order_time=order_time,

@@ -220,7 +220,7 @@ class CtpTraderGateway(TdApi):
     @generate_request_id
     def send_order(self, order):
         """
-        Send order to CTP.
+        Send order to CTP, only support limit price order.
 
         Args:
             order(obj): order obj
@@ -230,7 +230,11 @@ class CtpTraderGateway(TdApi):
         """
         order_id = order.order_id
         order_type = order.order_type
-        limit_price = float(order.order_price) if order_type != 'market' else float(0)
+        limit_price = float(order.price) if order_type != 'market' else float(0)
+        if limit_price <= 0:
+            logger.info(
+                '[send_order] error, order_id: {}, limit price is zero.'.format(order_id))
+            return None
         direction, offset_flag = DIRECTION_OFFSET_MAP.get((order.direction, order.offset_flag), ('1', '1'))
         assert order_id, 'Invalid order id.'
         request = dict()
