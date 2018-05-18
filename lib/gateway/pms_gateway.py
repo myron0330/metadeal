@@ -27,7 +27,7 @@ class PMSGateway(BasePMSGateway):
                  position_info=None, initial_value_info=None,
                  order_info=None, trade_info=None, benchmark_info=None,
                  total_commission_info=None, event_engine=None,
-                 subscriber_gateway=None):
+                 ctp_gateway=None):
         """
         组合管理配置
 
@@ -42,7 +42,7 @@ class PMSGateway(BasePMSGateway):
             benchmark_info(dict): 用户对比权益曲线 |-> dict(account: string)
             total_commission_info(dict): 手续费记录　｜-> dict(account: dict(date: float))
             event_engine(obj): event engine
-            subscriber_gateway(obj): subscriber gateway.
+            ctp_gateway(obj): subscriber gateway.
         """
         super(PMSGateway, self).__init__()
         self.clock = clock
@@ -55,12 +55,12 @@ class PMSGateway(BasePMSGateway):
         self.benchmark_info = benchmark_info or dict()
         self.total_commission_info = total_commission_info or DefaultDict(DefaultDict(0))
         self.event_engine = event_engine
-        self.subscriber_gateway = subscriber_gateway
+        self.ctp_gateway = ctp_gateway
         self._account_name_id_map = {account: config.account_id for account, config in self.accounts.iteritems()}
         self._account_id_name_map = {config.account_id: account for account, config in self.accounts.iteritems()}
 
     @classmethod
-    def from_config(cls, clock, sim_params, data_portal, accounts=None, event_engine=None, subscriber_gateway=None):
+    def from_config(cls, clock, sim_params, data_portal, accounts=None, event_engine=None, ctp_gateway=None):
         """
         从配置中生而成 PMS Gateway
         """
@@ -75,7 +75,7 @@ class PMSGateway(BasePMSGateway):
         return cls(clock=clock, accounts=accounts, data_portal=data_portal,
                    position_info=position_info, initial_value_info=initial_value_info,
                    benchmark_info=benchmark_info, total_commission_info=total_commission_info,
-                   subscriber_gateway=subscriber_gateway)
+                   event_engine=event_engine, ctp_gateway=ctp_gateway)
 
     def send_order(self, order, account_id=None):
         """
@@ -90,7 +90,7 @@ class PMSGateway(BasePMSGateway):
         order.state = OrderState.ORDER_SUBMITTED
         order.state_message = OrderStateMessage.OPEN
         self.order_info[account_id][order.order_id] = order
-        trade_subscriber = self.subscriber_gateway.trade_subscriber_pool.get(account_id)
+        trade_subscriber = self.ctp_gateway.trade_subscriber_pool.get(account_id)
         if trade_subscriber:
             logger.info('[PMS Gateway] [Send order] account_id: {}, order_id: {}, '
                         'subscribe trade response of current order.'.format(account_id, order.order_id))
@@ -148,7 +148,7 @@ class PMSGateway(BasePMSGateway):
         Args:
             account_id(string): account id
         """
-        return self.subscriber_gateway.query_position_detail(account_id)
+        return self.ctp_gateway.query_position_detail(account_id)
 
     def get_orders(self, account_id):
         """

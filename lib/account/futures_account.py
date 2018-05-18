@@ -12,9 +12,12 @@ from .. trade import (
 
 class FuturesAccount(BaseAccount):
 
-    def __init__(self, clock, data_portal):
+    def __init__(self, clock=None, data_portal=None, event_engine=None, pms_gateway=None, account_id=None):
         super(FuturesAccount, self).__init__(clock=clock,
-                                             data_portal=data_portal)
+                                             data_portal=data_portal,
+                                             event_engine=event_engine,
+                                             pms_gateway=pms_gateway,
+                                             account_id=account_id)
         self.account_type = 'futures'
 
     def order(self, symbol, amount, direction=None, offset_flag="open", order_type="market", price=0.):

@@ -71,8 +71,8 @@ def parse_sim_params(config, local_variables):
     benchmark = parse_prior_params(config, local_variables, 'benchmark', DEFAULT_KEYWORDS['benchmark'])
     accounts = parse_prior_params(config, local_variables, 'accounts', DEFAULT_KEYWORDS['accounts'])
     capital_base = parse_prior_params(config, local_variables, 'capital_base', DEFAULT_KEYWORDS['capital_base'])
-    position_base = parse_prior_params(config, local_variables, 'position_base', DEFAULT_KEYWORDS['security_base'])
-    cost_base = parse_prior_params(config, local_variables, 'cost_base', DEFAULT_KEYWORDS['security_cost'])
+    position_base = parse_prior_params(config, local_variables, 'position_base', DEFAULT_KEYWORDS['position_base'])
+    cost_base = parse_prior_params(config, local_variables, 'cost_base', DEFAULT_KEYWORDS['cost_base'])
     refresh_rate = parse_prior_params(config, local_variables, 'refresh_rate', DEFAULT_KEYWORDS['refresh_rate'])
     freq = parse_prior_params(config, local_variables, 'freq', DEFAULT_KEYWORDS['freq'])
     commission = parse_prior_params(config, local_variables, 'commission', Commission())
@@ -112,7 +112,8 @@ def strategy_from_code(code, need_strategy_parse=True, log_obj=None):
     Returns:
         tuple: TradingStrategy, param dict
     """
-    from api import (Commission, Slippage, OrderState, AccountConfig)
+    from account.account import AccountConfig
+    from trade import Commission, Slippage, OrderState
     assert (Commission, Slippage, OrderState, AccountConfig)
     log = log_obj
     if not need_strategy_parse:

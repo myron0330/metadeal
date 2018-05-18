@@ -41,13 +41,13 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
     sim_params = parse_sim_params(config, local_variables)
     clock = Clock(sim_params.freq)
     data_portal = DataPortal()
-    data_portal.batch_load_data(sim_params)
+    data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
     strategy_gateway = StrategyGateway()
     ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
-    subscriber_gateway = SubscriberGateway.from_config(sim_params=sim_params, event_engine=event_engine)
+    # subscriber_gateway = SubscriberGateway.from_config(sim_params=sim_params, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
-                                         subscriber_gateway=subscriber_gateway)
+                                         ctp_gateway=ctp_gateway)
     account_manager = AccountManager.from_config(clock, sim_params, data_portal,
                                                  event_engine=event_engine,
                                                  pms_gateway=pms_gateway)
