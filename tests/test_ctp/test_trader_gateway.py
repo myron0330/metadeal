@@ -32,5 +32,7 @@ trader_gateway.query_positions()
 # 开限价单成交
 order = Order(symbol='i1809', order_amount=-5, offset_flag='open',
               price=483, order_type='limit', order_time='2018-05-16')
+# order = Order(symbol='i1809', order_amount=-5, offset_flag='open', order_type='market', order_time='2018-05-17')
 trader_gateway.send_order(order)
 time.sleep(1)
+trader_gateway.cancel_order('000001')

@@ -15,10 +15,12 @@ from . gateway import (
     PMSGateway,
     StrategyGateway,
     SubscriberGateway,
-    CTPMarketGateway
+    CTPMarketGateway,
+    CTPGateway
 )
 from . trading_engine import TradingEngine
 from . trading_base import strategy_from_code, parse_sim_params
+from . configs import ctp_config
 
 
 def trading(strategy_code, config=None, connect_json=None, **kwargs):
@@ -42,7 +44,7 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
     data_portal.batch_load_data(sim_params)
     event_engine = EventEngine()
     strategy_gateway = StrategyGateway()
-    ctp_market_gateway = CTPMarketGateway(event_engine=event_engine)
+    ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
     subscriber_gateway = SubscriberGateway.from_config(sim_params=sim_params, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          subscriber_gateway=subscriber_gateway)

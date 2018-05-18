@@ -10,7 +10,7 @@ from . ctp_base import get_temp_path
 
 
 ORDER_TYPE_MAP = {
-    'market': '1',
+    'market': '3',
     'limit': '2'
 }
 
@@ -149,9 +149,7 @@ class CtpTraderGateway(TdApi):
                 'BrokerID': self.broker_id
             }
             self.reqUserLogin(request, self._generate_next_request_id())
-            time.sleep(0.1)
             self.settlement_confirm()
-            time.sleep(0.1)
 
     def settlement_confirm(self):
         """
@@ -215,7 +213,6 @@ class CtpTraderGateway(TdApi):
             'InvestorID': self.user_id,
         }
         self.reqQryInvestorPosition(request, self.request_id)
-        time.sleep(0.1)
 
     @generate_request_id
     def send_order(self, order):
@@ -231,7 +228,7 @@ class CtpTraderGateway(TdApi):
         order_id = order.order_id
         order_type = order.order_type
         limit_price = float(order.price) if order_type != 'market' else float(0)
-        if limit_price <= 0:
+        if order_type == 'limit' and limit_price <= 0:
             logger.info(
                 '[send_order] error, order_id: {}, limit price is zero.'.format(order_id))
             return None
@@ -261,22 +258,18 @@ class CtpTraderGateway(TdApi):
         return order_id
 
     @generate_request_id
-    def cancel_order(self, cancelOrderReq):
+    def cancel_order(self, order_id):
         """
         Cancel order.
+
         Args:
-            cancelOrderReq:
-
-        Returns:
-
+            order_id(string): order id.
         """
         self.request_id += 1
         request = dict()
-        request['InstrumentID'] = cancelOrderReq.symbol
-        request['ExchangeID'] = cancelOrderReq.exchange
-        request['OrderRef'] = cancelOrderReq.orderID
-        request['FrontID'] = cancelOrderReq.frontID
-        request['SessionID'] = cancelOrderReq.sessionID
+        request['OrderRef'] = order_id
+        request['FrontID'] = self.front_id
+        request['SessionID'] = self.session_id
         request['ActionFlag'] = defineDict['THOST_FTDC_AF_Delete']
         request['BrokerID'] = self.broker_id
         request['InvestorID'] = self.user_id

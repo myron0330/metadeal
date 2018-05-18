@@ -112,11 +112,9 @@ def strategy_from_code(code, need_strategy_parse=True, log_obj=None):
     Returns:
         tuple: TradingStrategy, param dict
     """
-    # 此处为了使得code能够通过execute正常运行，需要将策略可能调用的模块预先import
-    from lib.api import (Commission, Slippage, OrderState, AccountConfig)
+    from api import (Commission, Slippage, OrderState, AccountConfig)
     assert (Commission, Slippage, OrderState, AccountConfig)
     log = log_obj
-    # 将当前环境中的local变量注入到globals中，用于执行code策略
     if not need_strategy_parse:
         code = get_code_parameters(code)
     exec code in locals()

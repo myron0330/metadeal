@@ -107,9 +107,9 @@ __all__ = [
 
 
 if __name__ == '__main__':
-    test_object_name = 'PositionResponse'
-    test_attribute_list = ['short_frozen_amount', 'margin_rate_by_money', 'hedge_flag', 'pre_settlement_price', 'open_volume', 'yd_strike_frozen', 'position_date', 'exchange_id', 'close_profit_by_trade', 'pre_margin', 'settlement_id', 'short_frozen', 'today_position', 'trading_day', 'broker_id', 'frozen_cash', 'position', 'exchange_margin', 'close_profit_by_date', 'settlement_price', 'frozen_commission', 'close_profit', 'use_margin', 'investor_id', 'frozen_margin', 'position_profit', 'commission', 'margin_rate_by_volume', 'strike_frozen', 'comb_position', 'cash_in', 'comb_long_frozen', 'close_amount', 'posi_direction', 'yd_position', 'abandon_frozen', 'close_volume', 'instrument_id', 'long_frozen', 'position_cost', 'open_amount', 'open_cost', 'comb_short_frozen', 'long_frozen_amount', 'strike_frozen_amount']
-    bases_list = 'CTPObject'
+    test_object_name = 'Tracker'
+    test_attribute_list = ['bt_info', 'order', 'cancel_order', 'get_universe', 'account', 'transfer_cash']
+    bases_list = 'object'
     test_code = generate_class_object(test_object_name, test_attribute_list,
                                       bases=bases_list, with_dump=True,
                                       dump_file='test.py')
