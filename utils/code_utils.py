@@ -108,7 +108,7 @@ __all__ = [
 
 if __name__ == '__main__':
     test_object_name = 'Tracker'
-    test_attribute_list = ['bt_info', 'order', 'cancel_order', 'get_universe', 'account', 'transfer_cash']
+    test_attribute_list = ['basic_info', 'interface_info', 'error_info']
     bases_list = 'object'
     test_code = generate_class_object(test_object_name, test_attribute_list,
                                       bases=bases_list, with_dump=True,

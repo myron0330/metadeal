@@ -13,19 +13,17 @@ from . data.asset_service import AssetType
 from .. utils.datetime_utils import get_direct_trading_day
 
 
-class TradingEngine(TradingGateway):
+class TradingAgent(TradingGateway):
     """
     交易调度引擎
     """
-    def __init__(self, clock, sim_params,
-                 strategy, data_portal, context,
-                 account_manager, pms_lite,
-                 broker_client, report_client,
-                 market_roller, trading_scheduler,
-                 sub_portfolio_info=None,
+    def __init__(self, clock=None, sim_params=None,
+                 strategy=None, data_portal=None,
+                 context=None, account_manager=None,
+                 market_roller=None, trading_scheduler=None,
                  pms_host=None, pms_headers=None,
                  log=None, debug=False, event_engine=None):
-        super(TradingEngine, self).__init__()
+        super(TradingAgent, self).__init__()
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
         self.sim_params = sim_params
@@ -33,12 +31,8 @@ class TradingEngine(TradingGateway):
         self.data_portal = data_portal
         self.context = context
         self.account_manager = account_manager
-        self.pms_lite = pms_lite
-        self.broker_client = broker_client
-        self.report_client = report_client
         self.market_roller = market_roller
         self.trading_scheduler = trading_scheduler
-        self.sub_portfolio_info = sub_portfolio_info
         self.pms_host = pms_host
         self.pms_headers = pms_headers
         self.log = log
@@ -47,29 +41,6 @@ class TradingEngine(TradingGateway):
         self.trading_days_length = None
         self.current_minute_bars = None
         self._active = False
-
-    @classmethod
-    def from_config(cls, clock, sim_params, data_portal, strategy, account_manager,
-                    pms_lite, broker_client, report_client, market_roller,
-                    trading_scheduler, context=None, sub_portfolio_info=None,
-                    pms_host=None, pms_headers=None, log=None, debug=False,
-                    event_engine=None):
-        calendar_service, asset_service, universe_service, market_service = \
-            data_portal.calendar_service, data_portal.asset_service, \
-            data_portal.universe_service, data_portal.market_service
-        if context is None:
-            context = Context(clock, sim_params, strategy,
-                              market_service=market_service,
-                              universe_service=universe_service,
-                              asset_service=asset_service,
-                              calendar_service=calendar_service,
-                              market_roller=market_roller,
-                              account_manager=account_manager)
-        return cls(clock, sim_params, strategy, data_portal, context, account_manager,
-                   pms_lite, broker_client, report_client, market_roller,
-                   trading_scheduler, sub_portfolio_info=sub_portfolio_info,
-                   pms_host=pms_host, pms_headers=pms_headers, log=log, debug=debug,
-                   event_engine=event_engine)
 
     def start(self):
         """

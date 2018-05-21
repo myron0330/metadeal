@@ -36,11 +36,11 @@ class SimulationParameters(object):
     ):
         self.start = normalize_date(start)
         self.end = normalize_date(end)
-        self._refresh_rate = refresh_rate
-        self._freq = freq
+        self.refresh_rate = refresh_rate
+        self.freq = freq
         self.max_history_window_daily, self.max_history_window_minute = \
             self.parse_max_history_window(max_history_window)
-        self._major_benchmark, self._benchmarks = self.parse_benchmark(benchmark)
+        self.major_benchmark, self.benchmarks = self.parse_benchmark(benchmark)
         self.cash = capital_base
         self.slippage = slippage
         self.commission = commission
@@ -56,22 +56,6 @@ class SimulationParameters(object):
         self.position_base_by_accounts = position_base_by_accounts or dict()
         self.cost_base_by_accounts = cost_base_by_accounts or dict()
         self.capital_base_by_accounts = capital_base_by_accounts or dict()
-
-    @property
-    def freq(self):
-        return self._freq
-
-    @property
-    def refresh_rate(self):
-        return self._refresh_rate
-
-    @property
-    def benchmarks(self):
-        return self._benchmarks
-
-    @property
-    def major_benchmark(self):
-        return self._major_benchmark
 
     @staticmethod
     def parse_max_history_window(max_history_window):
@@ -137,8 +121,8 @@ freq = {},
 benchmarks = {},
 major benchmark = {},
 universe = {},
-""".format(self._freq,
-           self._benchmarks,
-           self._major_benchmark,
+""".format(self.freq,
+           self.benchmarks,
+           self.major_benchmark,
            self.universe.__repr__())
         return repr_str.strip()

@@ -90,14 +90,9 @@ class PMSGateway(BasePMSGateway):
         order.state = OrderState.ORDER_SUBMITTED
         order.state_message = OrderStateMessage.OPEN
         self.order_info[account_id][order.order_id] = order
-        trade_subscriber = self.ctp_gateway.trade_subscriber_pool.get(account_id)
-        if trade_subscriber:
-            logger.info('[PMS Gateway] [Send order] account_id: {}, order_id: {}, '
-                        'subscribe trade response of current order.'.format(account_id, order.order_id))
-            trade_subscriber.put_order(order.order_id)
-        else:
-            logger.info('[PMS Gateway] [Send order] account_id: {}, order_id: {}, '
-                        'no trade subscriber registered.'.format(account_id, order.order_id))
+        logger.info('[PMS Gateway] [Send order] account_id: {}, order_id: {}, '
+                    'subscribe trade response of current order.'.format(account_id, order.order_id))
+        self.ctp_gateway.trader_gateway.send_order(order)
 
     def cancel_order(self, order_id, account_id=None):
         """
