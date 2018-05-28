@@ -4,13 +4,13 @@
 # **********************************************************************************#
 from copy import copy
 from datetime import datetime
+from utils.datetime_utils import get_direct_trading_day
 from . trading_base import *
 from . event.event_base import EventType
 from . gateway.trading_gateway import TradingGateway
 from . context.context import Context
 from . context.parameters import SimulationParameters
 from . data.asset_service import AssetType
-from .. utils.datetime_utils import get_direct_trading_day
 
 
 class TradingAgent(TradingGateway):
@@ -21,8 +21,7 @@ class TradingAgent(TradingGateway):
                  strategy=None, data_portal=None,
                  context=None, account_manager=None,
                  market_roller=None, trading_scheduler=None,
-                 pms_host=None, pms_headers=None,
-                 log=None, debug=False, event_engine=None):
+                 event_engine=None, log=None, debug=False):
         super(TradingAgent, self).__init__()
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
@@ -33,11 +32,9 @@ class TradingAgent(TradingGateway):
         self.account_manager = account_manager
         self.market_roller = market_roller
         self.trading_scheduler = trading_scheduler
-        self.pms_host = pms_host
-        self.pms_headers = pms_headers
+        self.event_engine = event_engine
         self.log = log
         self.debug = debug
-        self.event_engine = event_engine
         self.trading_days_length = None
         self.current_minute_bars = None
         self._active = False

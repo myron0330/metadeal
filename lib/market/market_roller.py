@@ -7,132 +7,93 @@ import bisect
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from .. data.data_portal import DataPortal
-from .. data import MarketService, CalendarService, AssetService, AssetType
-from .. data_loader.data_api import get_last_price_name_info
-from .. universe.universe import UniverseService
-from .. utils.error_utils import Errors
-from .. utils.datetime_utils import previous_trading_day
+from utils.error_utils import Errors
+from utils.datetime_utils import get_previous_trading_date
 from .. const import (
-    STOCK_PATTERN,
     BASE_FUTURES_PATTERN,
     CONTINUOUS_FUTURES_PATTERN,
     TRADE_ESSENTIAL_FIELDS_DAILY,
     TRADE_ESSENTIAL_FIELDS_MINUTE,
     HISTORY_ESSENTIAL_FIELDS_MINUTE,
-    STOCK_ADJ_FIELDS,
-    ADJ_FACTOR,
     MAX_CACHE_DAILY_PERIODS,
+    ADJ_FACTOR,
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
 
 
-def get_backtest_service_deprecated(sim_params, preload_market_service=None):
-    calendar_service = CalendarService(sim_params.start, sim_params.end,
-                                       max_daily_window=sim_params.max_history_window_daily)
-
-    init_universe_list = sim_params.security_base.keys()
-    if sim_params.accounts is not None:
-        for account in sim_params.accounts.values():
-            init_universe_list += account.position_base.keys()
-    universe_service = UniverseService(sim_params.universe, sim_params.trading_days,
-                                       benchmarks=sim_params.benchmarks,
-                                       init_universe_list=list(set(init_universe_list)))
-
-    asset_service = AssetService.init_with_symbols(universe_service.full_universe,
-                                                   start_date=sim_params.start, end_date=sim_params.end,
-                                                   expand_continuous_future=True)
-    # 该方案为折衷方案，后期考虑更好的实现
-    universe_service.full_universe_set |= asset_service.filter_symbols(AssetType.BASE_FUTURES)
-    inactive_symbols = list(asset_service.filter_inactive_symbols(universe_service.full_universe_set,
-                                                                  sim_params.start, sim_params.end))
-    if len(inactive_symbols) > 0:
-        print 'WARNING: these assets in universe is not active between {} and {}: {}'.format(
-            sim_params.start.strftime('%Y-%m-%d'), sim_params.end.strftime('%Y-%m-%d'), ','.join(inactive_symbols))
-        universe_service.remove(inactive_symbols)
-
-    if preload_market_service:
-        market_service = preload_market_service
-    else:
-        market_service = MarketService.create_with_service(asset_service=asset_service,
-                                                           universe_service=universe_service,
-                                                           calendar_service=calendar_service)
-    return calendar_service, asset_service, universe_service, market_service
-
-
-def get_backtest_service(sim_params, preload_market_service=None, disabled_service=None):
-    data_ptl = DataPortal()
-    data_ptl.batch_load_data(sim_params, disabled_service=disabled_service)
-    # if preload_market_service:
-    #     market_service = preload_market_service
-    # else:
-    #     market_service = MarketService.create_with_service(asset_service=asset_service,
-    #                                                        universe_service=universe_service,
-    #                                                        calendar_service=calendar_service)
-    cal_service = data_ptl.calendar_service
-    ast_service = data_ptl.asset_service
-    univ_service = data_ptl.universe_service
-    mkt_service = data_ptl.market_service
-    return cal_service, ast_service, univ_service, mkt_service
-
-
 def _tas_data_tick_expand(data, fields=None, tick_time_field='barTime'):
     """
-    返回展开的tas分钟线数据
+    Expand tas data.
 
     Args:
-        data(DataFrame): 压缩好的分钟线数据
-        fields(list of attribute): 如['highPrice', 'closePrice']
-        tick_time_field(str): data中的分钟列名，不建议修改
+        data(DataFrame): compressed data
+        fields(list): field list
+        tick_time_field(str): tick time field
 
     Returns:
-        dict of dict，key为分钟时点，value如{'RM701':('09:01', 2287.0, 2286.0, 2289.0, 2283.0, 656.0)}
+        dict: key--> minute time
+              value--> {'RM701': ('09:01', 2287.0, 2286.0, 2289.0, 2283.0, 656.0)}
     """
     fields = fields or ['barTime', 'closePrice']
-    minute_ticks = {}
+    expanded_data = {}
     valid_symbols_list = data['symbol'][[i for i, e in enumerate(data[tick_time_field]) if e.shape is not ()]]
     for i, stk in enumerate(data['symbol']):
         if stk not in valid_symbols_list:
             continue
 
         for item in zip(*[data[field][i] for field in [tick_time_field] + fields]):
-            ttime = item[0]
-            minute_ticks.setdefault(ttime, {})
-            minute_ticks[ttime][stk] = tuple(item[1:])
-        # TODO tas 格式数据应当包括t应对包括分钟
-        # for field in [tick_time_field] + fields:
-        #     for bar in data[tick_time_field][i]:
-        #         ttime = bar
-        #         index = np.where(data[tick_time_field][i] == ttime)
-        #         minute_ticks.setdefault(ttime, {})
-        #         if field not in minute_ticks[ttime]:
-        #             minute_ticks[ttime][field] = {stk: data[field][i][index].item(0)}
-        #         else:
-        #             if stk not in minute_ticks[ttime][field]:
-        #                 minute_ticks[ttime][field][stk] = data[field][i][index].item(0)
-        #             else:
-        #                 minute_ticks[ttime][field].update({stk: data[field][i][index].item(0)})
-    return minute_ticks
+            item_time = item[0]
+            expanded_data.setdefault(item_time, {})
+            expanded_data[item_time][stk] = tuple(item[1:])
+    return expanded_data
 
 
 def _at_data_tick_expand(at_data):
-    expanded_tick_data = {}
+    """
+    Expand at data.
+
+    Args:
+        at_data(dict): at data
+
+    Returns:
+        dict: expanded at data
+    """
+    expanded_data = {}
     for attr, data in at_data.iteritems():
         if attr == 'time' or data is None:
             continue
         valid_data_list = [d for d in data if d.shape is not ()]
         if len(valid_data_list) > 0:
-            expanded_tick_data[attr] = np.concatenate(valid_data_list)
-    return expanded_tick_data
+            expanded_data[attr] = np.concatenate(valid_data_list)
+    return expanded_data
 
 
 def _st_data_tick_expand(st_data):
+    """
+    Expand st data.
+
+    Args:
+        st_data(dict): st data
+
+    Returns:
+        dict: expanded st data
+    """
     non_futures = [e for e in st_data if not(BASE_FUTURES_PATTERN.match(e) or CONTINUOUS_FUTURES_PATTERN.match(e))]
     return {s: np.concatenate(st_data[s]) for s in non_futures if st_data.get(s) is not None}
 
 
-def _dict_sat_to_ast(sat_data, fields):
+def _transfer_sat_to_ast(sat_data, fields):
+    """
+    Transfer sat data to ast data.
+
+    Args:
+        sat_data(dict): sat data
+        fields(list): field list
+
+    Returns:
+        dict: at data
+    """
     ast_result = {field: {} for field in fields}
     for symbol, at_dict in sat_data.iteritems():
         if BASE_FUTURES_PATTERN.match(symbol) or CONTINUOUS_FUTURES_PATTERN.match(symbol):
@@ -142,18 +103,25 @@ def _dict_sat_to_ast(sat_data, fields):
     return ast_result
 
 
-def _map_to_date(bar_time, current_trading_day):
+def _to_datetime_string(bar_time, trading_day):
     """
-    返回bar_time所对应的日期
+    Generate date time string.
+
+    Args:
+        bar_time(string): bar time
+        trading_day(datetime.datetime): trading day
+
+    Returns:
+        string: date string
     """
     if bar_time.startswith('2'):
-        prev_trading_day = previous_trading_day(current_trading_day)
+        prev_trading_day = get_previous_trading_date(trading_day)
         date = prev_trading_day
     elif bar_time[:2] < '09':
-        prev_next_day = previous_trading_day(current_trading_day) + timedelta(days=1)
+        prev_next_day = get_previous_trading_date(trading_day) + timedelta(days=1)
         date = prev_next_day
     else:
-        date = current_trading_day
+        date = trading_day
     return date.strftime('%Y-%m-%d ') + bar_time
 
 
@@ -289,29 +257,12 @@ class MarketRoller(object):
         if not current_trading_day:
             return
         current_date = current_trading_day
-        # current_bar_time = self.market_service.minute_bar_map[current_date.strftime('%Y-%m-%d')]
-        # if len(current_bar_time) > 0:
-        #     latest_bar_minute = current_bar_time[-1]
-        #     # todo: errors, if then?  restart?
-        #     assert latest_bar_minute in rt_minutes
-        #     start_idx = rt_minutes.index(latest_bar_minute) + 1
-        #     if start_idx == len(rt_minutes):
-        #         return
-        #     # minutes_to_append = rt_minutes[rt_minutes.index(latest_bar_minute):]
-        # elif len(current_bar_time) == 0 and rt_minutes[0] in ['21:00', '09:30']:
-        #     start_idx = 0
-        #     # minutes_to_append = rt_minutes
-        # else:
-        #     # todo: 系统启动异常
-        #     raise Errors.INVALID_ORDER_AMOUNT
-        #
-        # 多一个 turnoverValue, 补充的数据结构不一致，有风险
         equity_rt_value_fields = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'turnoverValue']
         equity_rt_time_fields = ['barTime', 'tradeTime']
         for idx in range(0, len(rt_data)):
             bar_time, bar_data = rt_data[idx]
             if self.debug:
-                idx_trade_time = _map_to_date(bar_time, current_trading_day)
+                idx_trade_time = _to_datetime_string(bar_time, current_trading_day)
             else:
                 idx_trade_date = datetime.today().strftime('%Y-%m-%d')
                 if datetime.now().strftime('%H') in ['00', '01']:
@@ -322,7 +273,6 @@ class MarketRoller(object):
             #
             tas_idx_bar = {}
             for symbol, symbol_at_cache in self.sat_minute_cache.iteritems():
-                # todo: 个别symbol没推送过来，要区分处理？？？
                 if symbol not in bar_data:
                     continue
                 symbol_data = bar_data[symbol]
@@ -394,7 +344,6 @@ class MarketRoller(object):
         previous_trading_day = self.market_service.calendar_service.previous_trading_day_map[date]
         previous_ref_price = self.tas_daily_expanded_cache[previous_trading_day]['reference_price']
         if minute:
-            # todo. optimize minute reference return
             reference_price = self.reference_price(date, minute)
         else:
             reference_price = self.tas_daily_expanded_cache[date]['reference_price']
@@ -429,7 +378,6 @@ class MarketRoller(object):
                     return minute_data[symbol][1]
             return np.nan
         else:
-            # 各品种当天最终价格
             reference_price = self.reference_price(date).get(symbol, default)
             return reference_price
 
@@ -462,7 +410,7 @@ class MarketRoller(object):
         return market_data
 
     def slice(self, prepare_dates, end_time, time_range, fields=None, symbols='all', style='sat', rtype='array',
-              freq='m', adj=None):
+              freq='m'):
         """
         对展开后的分钟线数据进行筛选获取
 
@@ -471,11 +419,10 @@ class MarketRoller(object):
             end_time(date formatted str): 需要查询历史数据的截止时间，格式为'YYYYmmdd HH:MM'
             time_range(int): 需要查询历史数据的时间区间
             fields(list of str): 需要查询历史数据的字段列表
-            symbols(list of str): 需要查询历史数据的符号列表
+            symbols(string or list of string): 需要查询历史数据的符号列表
             style(sat or ast): 筛选后数据的返回样式
             rtype(dict or frame): 筛选后数据Panel的返回格式，dict表示dict of dict，frame表示dict of DataFrame
             freq(string): 'd' or 'm'
-            adj(string): 复权类型
 
         Returns:
             dict，根据style和rtype确定样式和结构
@@ -484,7 +431,8 @@ class MarketRoller(object):
             raise Errors.INVALID_HISTORY_END_MINUTE
         sat_fields = fields if style == 'sat' and rtype == 'array' else fields + ['tradeTime']
         with_time = False if style == 'sat' and rtype == 'frame' else True
-        sat_array = self.sat_slice(prepare_dates, end_time, time_range, sat_fields, symbols,
+        sat_array = self.sat_slice(prepare_dates, end_time, time_range,
+                                   fields=sat_fields, symbols=symbols,
                                    with_time=with_time, freq=freq)
         if style == 'sat':
             if rtype == 'frame':
@@ -492,7 +440,7 @@ class MarketRoller(object):
             else:
                 result = sat_array
         elif style == 'ast':
-            result = _dict_sat_to_ast(sat_array, sat_fields)
+            result = _transfer_sat_to_ast(sat_array, sat_fields)
             if rtype == 'frame':
                 trade_times = result['tradeTime'].values()[0]
                 for a, st_data in result.iteritems():

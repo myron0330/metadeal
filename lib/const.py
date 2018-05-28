@@ -70,3 +70,14 @@ FUTURES_DAILY_FIELDS = ['tradeDate', 'openPrice', 'highPrice', 'lowPrice', 'clos
                         'volume', 'openInterest', 'preSettlementPrice', 'turnoverVol', 'turnoverValue']
 FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'highPrice', 'lowPrice',
                          'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue']
+
+
+ADJ_FACTOR = 'default_adj_factor'
+MAX_CACHE_DAILY_PERIODS = 10
+TRADE_ESSENTIAL_FIELDS_DAILY = ['preClosePrice', 'openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol',
+                                'volume', 'preSettlementPrice', 'settlementPrice', 'openInterest', 'turnoverValue',
+                                'nav', 'accumNav', 'adjustNav', 'adjFactor']
+TRADE_ESSENTIAL_FIELDS_MINUTE = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'barTime',
+                                 'tradeTime']
+HISTORY_ESSENTIAL_FIELDS_MINUTE = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'turnoverValue',
+                                   'barTime', 'tradeTime']

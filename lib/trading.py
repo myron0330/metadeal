@@ -3,12 +3,12 @@
 #     File:
 # **********************************************************************************#
 import json
-
 from . core.clock import Clock
 from . context.context import Context
 from . account.account import AccountManager
 from . data.data_portal import DataPortal
 from . event.event_engine import EventEngine
+from . trading_schedular import TradingScheduler
 from . gateway import (
     PMSGateway,
     CTPGateway
@@ -42,6 +42,13 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params, disable_service=['market_service'])
     event_engine = EventEngine()
+    trading_scheduler = TradingScheduler(start=sim_params.start, end=sim_params.end,
+                                         freq=sim_params.freq,
+                                         refresh_rate_d=sim_params.refresh_rate_d,
+                                         refresh_rate_m=sim_params.refresh_rate_m,
+                                         max_history_window_d=sim_params.max_history_window_daily,
+                                         max_history_window_m=sim_params.max_history_window_minute,
+                                         calendar_service=data_portal.calendar_service)
     market_roller = MarketRoller(
             universe=list(set(data_portal.universe_service.full_universe)),
             market_service=data_portal.market_service,
@@ -67,11 +74,12 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
                                  context=context,
                                  account_manager=account_manager,
                                  market_roller=market_roller,
+                                 trading_scheduler=trading_scheduler,
                                  event_engine=event_engine)
     trading_agent.register_handlers(event_engine=event_engine)
     trading_agent.prepare_initialize(minute_loading_rate=5)
     trading_agent.compute_signal_info()
     trading_agent.pre_trading_day(clock.current_date)
-    trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_m(clock.current_date))
+    trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_minutely(clock.current_date))
     trading_agent.pre_trading_minute(clock.current_date)
     trading_agent.start()

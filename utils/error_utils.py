@@ -147,16 +147,20 @@ class Errors(object):
     INVALID_COST_BASE = TradingInputException(error(500, '[TradingInputException] INVALID cost base.'))
     INVALID_CAPITAL_BASE = TradingInputException(error(500, '[TradingInputException] INVALID capital base.'))
     INVALID_SECURITY_ID = TradingInputException(error(500, '[TradingInputException] INVALID symbol.'))
-
+    INVALID_TRIGGER_DAYS = TradingInputException(error(500, '[TradingInputException] INVALID trigger days.'))
+    INVALID_SELF_DEFINED_DATE_TYPE = TradingInputException(error(500, '[TradingInputException] INVALID '
+                                                                      'self defined date.'))
+    INVALID_SELF_DEFINED_DATE_VALUE = TradingInputException(error(500, '[TradingInputException] INVALID '
+                                                                       'self defined value.'))
     INVALID_UNIVERSE = UniverseException(error(500, '[UniverseException] INVALID Universe input.'))
     INVALID_UNIVERSE_SYMBOL = UniverseException(error(500, '[UniverseException] INVALID Universe symbol.'))
-
     INVALID_SIM_PARAMS = TradingException(error(500, '[TradingException] Parameters must be a'
                                                      'SimulationParameter instance.'))
     INVALID_COMMISSION = TradingException(error(500, '[TradingException] INVALID Commission instance.'))
     INVALID_ORDER_AMOUNT = TradingException(error(500, '[TradingException] INVALID order amount.'))
     INVALID_ORDER_STATE = TradingException(error(500, '[TradingException] INVALID order state.'))
     SWITCH_POSITION_FAILED = TradingException(error(500, '[TradingException] Switch position failed.'))
+    INVALID_HISTORY_END_MINUTE = TradingException(error(500, '[TradingException]'))
 
     INVALID_ACCOUNT_TYPE = AccountException(error(500, '[AccountException] INVALID account type.'))
     INVALID_ACCOUNT_NAME = AccountException(error(500, '[AccountException] INVALID account name.'))
