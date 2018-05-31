@@ -22,7 +22,8 @@ from .. database.database_api import (
 from .. const import (
     CONTINUOUS_FUTURES_PATTERN,
     FUTURES_DAILY_FIELDS,
-    FUTURES_MINUTE_FIELDS
+    FUTURES_MINUTE_FIELDS,
+    TRADE_ESSENTIAL_FIELDS_MINUTE
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
@@ -445,6 +446,38 @@ class MarketService(object):
         """
         if account_type == SecuritiesType.futures:
             return self.futures_market_data
+
+    def prepare_minute_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_FIELDS_MINUTE):
+        """
+        准备分钟线cache数据
+
+        Args:
+            symbols(list): symbol list
+            end_date(string): end date
+            time_range(int): time range
+            fields(list): field list
+        """
+        # minute_cache_data = {e: {} for e in ['tas', 'sat', 'ast']}
+        minute_cache_data = {e: {} for e in ['tas', 'sat']}
+        for market_data in self.market_data_list:
+            selected_universe = self.asset_service.filter_symbols(asset_type=market_data.asset_type, symbols=symbols)
+            selected_universe = list(selected_universe)
+            selected_universe = market_data._valid_symbols(selected_universe)
+            if not len(selected_universe):
+                continue
+            ast_array, time_bars = market_data.slice(selected_universe, fields, end_date, freq='m',
+                                                     time_range=time_range, rtype='array',
+                                                     cached_trading_days=self.calendar_service.cache_all_trading_days,
+                                                     no_stylish=True)
+            adj_data_dict, time_bars = \
+                market_data.adjust(ast_array, selected_universe, time_bars, f_adj=None, s_adj='pre_adj', freq='m')
+            for k, cache_item in minute_cache_data.iteritems():
+                raw_data_dict = ast_array if k == 'tas' else adj_data_dict
+                minute_cache_data[k] = \
+                    _append_data(cache_item, _ast_stylish(raw_data_dict, selected_universe, time_bars,
+                                                          fields, k, rtype='array'), k, rtype='array')
+        return minute_cache_data
+
 
 
 class MarketData(object):

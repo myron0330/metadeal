@@ -44,8 +44,8 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
     event_engine = EventEngine()
     trading_scheduler = TradingScheduler(start=sim_params.start, end=sim_params.end,
                                          freq=sim_params.freq,
-                                         refresh_rate_d=sim_params.refresh_rate_d,
-                                         refresh_rate_m=sim_params.refresh_rate_m,
+                                         refresh_rate_d=sim_params.refresh_rate,
+                                         refresh_rate_m=sim_params.refresh_rate,
                                          max_history_window_d=sim_params.max_history_window_daily,
                                          max_history_window_m=sim_params.max_history_window_minute,
                                          calendar_service=data_portal.calendar_service)
@@ -78,7 +78,6 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
                                  event_engine=event_engine)
     trading_agent.register_handlers(event_engine=event_engine)
     trading_agent.prepare_initialize(minute_loading_rate=5)
-    trading_agent.compute_signal_info()
     trading_agent.pre_trading_day(clock.current_date)
     trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_minutely(clock.current_date))
     trading_agent.pre_trading_minute(clock.current_date)

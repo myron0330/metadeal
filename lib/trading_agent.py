@@ -94,20 +94,6 @@ class TradingAgent(TradingGateway):
         """
         self.trading_scheduler.prepare(**kwargs)
         self.trading_days_length = len(self.trading_scheduler.trading_days())
-        if self.context.signal_flag() and not self.context.market_service.stock_market_data.daily_bars:
-            trading_days = self.context.calendar_service.all_trading_days
-            self.context.market_service.rolling_load_daily_data(trading_days)
-
-    def compute_signal_info(self, trading_days=None):
-        """
-        计算 signal 信息
-
-        Args:
-            trading_days(list of datetime.datetime): 全部交易日期
-        """
-        trading_days = trading_days or self.data_portal.calendar_service.all_trading_days
-        if self.context.signal_flag():
-            self.context.compute_signals(trading_days=trading_days)
 
     def rolling_load_daily_data(self, trading_days=None):
         """
@@ -120,8 +106,6 @@ class TradingAgent(TradingGateway):
         if not trading_days:
             return
         self.data_portal.market_service.rolling_load_daily_data(trading_days)
-        if self.context.signal_flag() and trading_days:
-            self.context.compute_signals(trading_days=trading_days)
 
     def rolling_load_minute_data(self, trading_days=None):
         """
@@ -142,7 +126,6 @@ class TradingAgent(TradingGateway):
         Pre trading day tasks: parse signal info, update daily data and adapt data to brokers.
         """
         date = date or self.clock.current_date
-        self._publish_signal_info(date)
         previous_trading_day = self.trading_scheduler.previous_date(date)
         self.market_roller.prepare_daily_data(previous_trading_day)
 
@@ -202,17 +185,6 @@ class TradingAgent(TradingGateway):
         portfolio_info = self.pms_lite.get_portfolio_info(info_date=self.clock.current_date)
         for account_name, account in self.account_manager.registered_accounts.iteritems():
             account.portfolio_info.update(portfolio_info[account_name])
-
-    def _publish_signal_info(self, date):
-        """
-        Publish signal info
-
-        Args:
-            date(datetime.datetime): 交易日期
-        """
-        if self.context.signal_flag():
-            self.context.signal_result = self.context.signal_generator.get_signal_result(
-                date, self.context.get_universe(AssetType.EQUITIES, exclude_halt=True, with_position=True))
 
     def _refresh_bar(self, bar):
         """
