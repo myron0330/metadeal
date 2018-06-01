@@ -20,6 +20,9 @@ from .. const import (
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
+EQUITY_RT_VALUE_FIELDS =\
+    ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'turnoverValue']
+EQUITY_RT_TIME_FIELDS = ['barTime', 'tradeTime']
 
 
 def _tas_data_tick_expand(data, fields=None, tick_time_field='barTime'):
@@ -70,15 +73,6 @@ def _at_data_tick_expand(at_data):
 
 
 def _st_data_tick_expand(st_data):
-    """
-    Expand st data.
-
-    Args:
-        st_data(dict): st data
-
-    Returns:
-        dict: expanded st data
-    """
     non_futures = [e for e in st_data if not(BASE_FUTURES_PATTERN.match(e) or CONTINUOUS_FUTURES_PATTERN.match(e))]
     return {s: np.concatenate(st_data[s]) for s in non_futures if st_data.get(s) is not None}
 
@@ -136,7 +130,7 @@ class MarketRoller(object):
     multi_freq_cache_dates = {}
 
     def __init__(self, universe, market_service, trading_days, daily_bar_loading_rate, minute_bar_loading_rate,
-                 debug=False):
+                 debug=False, paper=False):
         self.universe = universe
         self.market_service = market_service
         self.trading_days = trading_days
@@ -144,6 +138,7 @@ class MarketRoller(object):
         self.daily_bar_loading_rate = daily_bar_loading_rate
         self.minute_bar_loading_rate = minute_bar_loading_rate
         self.debug = debug
+        self.paper = paper
 
     def prepare_daily_data(self, current_date, extend_loading_days=1):
         """
@@ -460,17 +455,34 @@ class MarketRoller(object):
     def sat_slice(self, prepare_dates, end_time, time_range, fields=None, symbols='all', with_time=False, freq='m'):
         if MULTI_FREQ_PATTERN.match(freq) and freq != '1m':
             freq_cache_dates = self.multi_freq_cache_dates.get(freq)
-            if freq_cache_dates and set(prepare_dates) <= set(freq_cache_dates):
+            if any([self.debug, self.paper]) and prepare_dates[-1] == self.market_service.minute_bars_loaded_days[-1]:
+                # todo: 只有1天的情况, previous_date为空
+                end_date, previous_dates = prepare_dates[-1], prepare_dates[:-1]
+                # 检查之前交易日是否完备， 否则加载
+                if not(freq_cache_dates and set(previous_dates) <= set(freq_cache_dates)):
+                    previous_at_data = self.market_service.slice(
+                        symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
+                        freq=freq, style='sat', prepare_dates=previous_dates,
+                        end_date=previous_dates[-1], time_range=len(previous_dates),
+                        rtype='array', s_adj='pre_adj')
+                    previous_data = {s: _at_data_tick_expand(at_data) for (s, at_data) in previous_at_data.iteritems()}
+                    self.multi_freq_cache[freq] = previous_data
+                    self.multi_freq_cache_dates[freq] = previous_dates
+                # 更新当日 multi freq cache
+                self._multiple_freq_refresh(freq)
                 sat_array_data = self.multi_freq_cache[freq]
             else:
-                multi_freq_data = self.market_service.slice(
-                    symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
-                    freq=freq, style='sat', prepare_dates=prepare_dates,
-                    end_date=prepare_dates[-1], time_range=len(prepare_dates),
-                    rtype='array', s_adj='pre_adj')
-                sat_array_data = {s: _at_data_tick_expand(at_data) for (s, at_data) in multi_freq_data.iteritems()}
-                self.multi_freq_cache[freq] = sat_array_data
-                self.multi_freq_cache_dates[freq] = prepare_dates
+                if freq_cache_dates and set(prepare_dates) <= set(freq_cache_dates):
+                    sat_array_data = self.multi_freq_cache[freq]
+                else:
+                    multi_freq_data = self.market_service.slice(
+                        symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
+                        freq=freq, style='sat', prepare_dates=prepare_dates,
+                        end_date=prepare_dates[-1], time_range=len(prepare_dates),
+                        rtype='array', s_adj='pre_adj')
+                    sat_array_data = {s: _at_data_tick_expand(at_data) for (s, at_data) in multi_freq_data.iteritems()}
+                    self.multi_freq_cache[freq] = sat_array_data
+                    self.multi_freq_cache_dates[freq] = prepare_dates
         else:
             sat_array_data = self.sat_minute_cache
         result = {}
@@ -486,3 +498,115 @@ class MarketRoller(object):
                 st_result['time'] = at_data['tradeTime'][end_idx - time_range: end_idx]
             result[symbol] = st_result
         return result
+
+    def _multiple_freq_refresh(self, freq, tick_time_field='tradeTime'):
+        """
+        Refresh multiple frequency data.
+
+        Args:
+            freq(string): frequency
+            tick_time_field(string): tick time field
+        """
+        prev_trading_day = self.market_service.minute_bars_loaded_days[-2]
+        ever_begin_time = prev_trading_day.strftime('%Y-%m-%d 20:59')
+        for symbol, at_cache in self.sat_minute_cache.iteritems():
+            symbol_at = self.multi_freq_cache.get(freq, {}).get(symbol, {})
+            if symbol_at and symbol_at[tick_time_field].size > 0:
+                last_multi_time = symbol_at[tick_time_field][-1]
+            else:
+                last_multi_time = ever_begin_time
+            freq_num = int(freq[:-1])
+            end_date_idx = bisect.bisect_right(at_cache[tick_time_field], ever_begin_time)
+            multi_minutes = at_cache[tick_time_field][end_date_idx:][0::freq_num]
+            multi_idx = bisect.bisect_right(multi_minutes, last_multi_time)
+            if multi_idx == 0:
+                multi_rt_array = np.mat([[at_cache[e][end_date_idx]for e in EQUITY_RT_VALUE_FIELDS]])
+                multi_time_array = np.mat([
+                    [at_cache['barTime'][end_date_idx], at_cache[tick_time_field][end_date_idx]]])
+                _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array)
+                multi_idx = 1
+
+            begin_minute = multi_minutes[multi_idx - 1]
+            begin_idx = bisect.bisect_right(at_cache[tick_time_field], begin_minute)
+            at_data_added = _finalize_at_data(at_cache, begin_idx, freq_num)
+            if at_data_added:
+                multi_rt_array = np.mat([at_data_added[e] for e in EQUITY_RT_VALUE_FIELDS]).T
+                multi_time_array = np.mat(
+                    [at_data_added['barTime'], at_data_added[tick_time_field]]).T
+                inplace = False if begin_minute == last_multi_time else True
+                _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array, inplace=inplace)
+
+
+def _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array, inplace=False, tick_time_field='tradeTime'):
+    """
+    拍平增量的已聚合多周期分钟线
+    Args:
+        symbol_at:
+        multi_rt_array:
+        multi_time_array:
+        inplace(Boolean): 是否替换之前最后一根
+        tick_time_field:
+
+    Returns:
+
+    """
+    column_size = symbol_at[tick_time_field].size
+    total_column_size = column_size + len(multi_time_array)
+    if inplace:
+        total_column_size -= 1
+    matrix = np.zeros((len(EQUITY_RT_VALUE_FIELDS), total_column_size))
+
+    for _, field in enumerate(EQUITY_RT_VALUE_FIELDS):
+        if inplace:
+            matrix[_, :column_size] = symbol_at[field][:, :-1]
+        else:
+            matrix[_, :column_size] = symbol_at[field]
+    matrix[:, -1] = multi_rt_array
+    for i, _ in enumerate(matrix):
+        symbol_at[EQUITY_RT_VALUE_FIELDS[i]] = _
+
+    matrix_time = np.empty((len(EQUITY_RT_TIME_FIELDS), total_column_size), dtype='|S16')
+    for _, field in enumerate(EQUITY_RT_TIME_FIELDS):
+        if inplace:
+            matrix_time[_, :column_size] = symbol_at[field][:, :-1]
+        else:
+            matrix_time[_, :column_size] = symbol_at[field]
+    matrix_time[:, -1] = multi_time_array
+    for i, _ in enumerate(matrix_time):
+        symbol_at[EQUITY_RT_TIME_FIELDS[i]] = _
+
+
+def _finalize_at_data(at_minute_cache, begin_index, freq):
+    """
+    聚合增量的一根或多根多周期分钟线
+    Args:
+        at_minute_cache:
+        begin_index:
+        freq:
+
+    Returns:
+
+    """
+    result = {}
+    if at_minute_cache['tradeTime'][begin_index:].size == 0:
+        return result
+    pad_len = -at_minute_cache['tradeTime'][begin_index:].size % freq
+    for attribute, array in at_minute_cache.iteritems():
+        minute_data = array[begin_index:]
+        minute_pad = np.pad(minute_data, (0, pad_len), mode='constant', constant_values=(np.nan,))
+        multi_data = np.resize(minute_pad, (minute_pad.size/freq, freq))
+        if attribute in ['barTime', 'closePrice', 'tradeTime']:
+            data = multi_data[:, -1]
+            data[-1] = array[-1]
+        elif attribute == 'openPrice':
+            data = multi_data[:, 0]
+        elif attribute == 'highPrice':
+            data = np.nanmax(multi_data, axis=1)
+        elif attribute == 'lowPrice':
+            data = np.nanmin(multi_data, axis=1)
+        elif attribute in ['turnoverValue', 'turnoverVol']:
+            data = np.nansum(multi_data, axis=1)
+        else:
+            raise Exception('Bad attribute in minute bar data.')
+        result[attribute] = data
+    return result
