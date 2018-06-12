@@ -119,6 +119,82 @@ def _to_datetime_string(bar_time, trading_day):
     return date.strftime('%Y-%m-%d ') + bar_time
 
 
+def _concatenate_multiple_freq(at_cache, multi_rt_array, multi_time_array,
+                               inplace=False, tick_time_field='tradeTime'):
+    """
+    Concatenate multiple frequency data.
+
+    Args:
+        at_cache(dict): current at multiple cache data
+        multi_rt_array(matrix): multiple real-time data array
+        multi_time_array(matrix): multiple real-time time array
+        inplace(Boolean): whether to replace the latest bar
+        tick_time_field(string): tick time field name
+    """
+    column_size = at_cache[tick_time_field].size
+    total_column_size = column_size + len(multi_time_array)
+    if inplace:
+        total_column_size -= 1
+    increment_column_size = max(total_column_size - column_size, 1)
+    matrix = np.zeros((len(EQUITY_RT_VALUE_FIELDS), total_column_size))
+
+    for _, field in enumerate(EQUITY_RT_VALUE_FIELDS):
+        if inplace:
+            matrix[_, :(column_size - 1)] = at_cache[field][:-1]
+        else:
+            matrix[_, :column_size] = at_cache[field]
+    matrix[:, -increment_column_size:] = multi_rt_array.T
+    for i, _ in enumerate(matrix):
+        at_cache[EQUITY_RT_VALUE_FIELDS[i]] = _
+
+    matrix_time = np.empty((len(EQUITY_RT_TIME_FIELDS), total_column_size), dtype='|S16')
+    for _, field in enumerate(EQUITY_RT_TIME_FIELDS):
+        if inplace:
+            matrix_time[_, :(column_size - 1)] = at_cache[field][:-1]
+        else:
+            matrix_time[_, :column_size] = at_cache[field]
+    matrix_time[:, -increment_column_size:] = multi_time_array.T
+    for i, _ in enumerate(matrix_time):
+        at_cache[EQUITY_RT_TIME_FIELDS[i]] = _
+
+
+def _aggregate_at_multiple_data(at_minute_cache, begin_index, freq_number):
+    """
+    Aggregate multiple frequency bar data.
+
+    Args:
+        at_minute_cache(dict): at minute data cache
+        begin_index(int): begin index
+        freq_number(int): frequency
+
+    Returns:
+        dict: key -->attribute, value --> np.matrix
+    """
+    result = {}
+    if at_minute_cache['tradeTime'][begin_index:].size == 0:
+        return result
+    pad_len = -at_minute_cache['tradeTime'][begin_index:].size % freq_number
+    for attribute, array in at_minute_cache.iteritems():
+        minute_data = array[begin_index:]
+        minute_pad = np.pad(minute_data, (0, pad_len), mode='constant', constant_values=(np.nan,))
+        multi_data = np.resize(minute_pad, (minute_pad.size / freq_number, freq_number))
+        if attribute in ['barTime', 'closePrice', 'tradeTime']:
+            data = multi_data[:, -1]
+            data[-1] = array[-1]
+        elif attribute == 'openPrice':
+            data = multi_data[:, 0]
+        elif attribute == 'highPrice':
+            data = np.nanmax(multi_data, axis=1)
+        elif attribute == 'lowPrice':
+            data = np.nanmin(multi_data, axis=1)
+        elif attribute in ['turnoverValue', 'turnoverVol']:
+            data = np.nansum(multi_data, axis=1)
+        else:
+            raise Exception('Bad attribute in minute bar data.')
+        result[attribute] = data
+    return result
+
+
 class MarketRoller(object):
 
     tas_daily_cache = None
@@ -237,13 +313,12 @@ class MarketRoller(object):
         }
         return self.tas_minute_expanded_cache
 
-    def back_fill_rt_data(self, current_trading_day=None, rt_data=None, tick_time_field='barTime'):
+    def back_fill_rt_data(self, current_trading_day=None, rt_data=None):
         """
         加载推送的分钟线截面数据
         Args:
             current_trading_day(datetime.datetime): 实时行情结算日
             rt_data(list): list of (barTime, symbol_bar_data)
-            tick_time_field(basestring): 校验当前分钟线的field
 
         Returns(list):
             所加载的 barTime 列表
@@ -252,8 +327,6 @@ class MarketRoller(object):
         if not current_trading_day:
             return
         current_date = current_trading_day
-        equity_rt_value_fields = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'turnoverValue']
-        equity_rt_time_fields = ['barTime', 'tradeTime']
         for idx in range(0, len(rt_data)):
             bar_time, bar_data = rt_data[idx]
             if self.debug:
@@ -265,30 +338,16 @@ class MarketRoller(object):
                         yesterday = datetime.today() - timedelta(days=1)
                         idx_trade_date = yesterday.strftime('%Y-%m-%d')
                 idx_trade_time = idx_trade_date + ' ' + bar_time
-            #
+
             tas_idx_bar = {}
-            for symbol, symbol_at_cache in self.sat_minute_cache.iteritems():
+            for symbol, at_cache in self.sat_minute_cache.iteritems():
                 if symbol not in bar_data:
                     continue
                 symbol_data = bar_data[symbol]
-                # current bar_time length
-                column_size = symbol_at_cache[tick_time_field].size
-                matrix = np.zeros((len(equity_rt_value_fields), column_size + 1))
-                for _, field in enumerate(equity_rt_value_fields):
-                    matrix[_, :column_size] = symbol_at_cache[field]
-                matrix[:, -1] = symbol_data
-                for i, _ in enumerate(matrix):
-                    symbol_at_cache[equity_rt_value_fields[i]] = _
+                multi_time_array = np.mat([[bar_time, idx_trade_time]])
+                _concatenate_multiple_freq(at_cache, np.mat([symbol_data]), multi_time_array)
 
-                matrix_time = np.empty((len(equity_rt_time_fields), column_size + 1), dtype='|S16')
-                for _, field in enumerate(equity_rt_time_fields):
-                    matrix_time[_, :column_size] = symbol_at_cache[field]
-                matrix_time[:, -1] = [bar_time, idx_trade_time]
-                for i, _ in enumerate(matrix_time):
-                    symbol_at_cache[equity_rt_time_fields[i]] = _
-
-                # prepare to back fill self.tas_minute_expanded_cache
-                symbol_data.extend([bar_time, idx_trade_time])
+                symbol_data.extend([[bar_time, idx_trade_time]])
                 tas_idx_bar.update({symbol: tuple(symbol_data)})
             minute_bar = {bar_time: tas_idx_bar}
             self.tas_minute_expanded_cache[current_date].update(minute_bar)
@@ -320,7 +379,6 @@ class MarketRoller(object):
                         break
                 else:
                     minute_price = dict()
-            # minute_price = self.tas_minute_expanded_cache[date][minute]
             reference_price = {symbol: value[1] for (symbol, value) in minute_price.iteritems()}
         else:
             reference_price = self.tas_daily_expanded_cache[date]['reference_price']
@@ -459,7 +517,7 @@ class MarketRoller(object):
                 # todo: 只有1天的情况, previous_date为空
                 end_date, previous_dates = prepare_dates[-1], prepare_dates[:-1]
                 # 检查之前交易日是否完备， 否则加载
-                if not(freq_cache_dates and set(previous_dates) <= set(freq_cache_dates)):
+                if not (freq_cache_dates and set(previous_dates) <= set(freq_cache_dates)):
                     previous_at_data = self.market_service.slice(
                         symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
                         freq=freq, style='sat', prepare_dates=previous_dates,
@@ -510,103 +568,28 @@ class MarketRoller(object):
         prev_trading_day = self.market_service.minute_bars_loaded_days[-2]
         ever_begin_time = prev_trading_day.strftime('%Y-%m-%d 20:59')
         for symbol, at_cache in self.sat_minute_cache.iteritems():
-            symbol_at = self.multi_freq_cache.get(freq, {}).get(symbol, {})
-            if symbol_at and symbol_at[tick_time_field].size > 0:
-                last_multi_time = symbol_at[tick_time_field][-1]
+            multiple_at_cache = self.multi_freq_cache.get(freq, {}).get(symbol, {})
+            if multiple_at_cache and multiple_at_cache[tick_time_field].size > 0:
+                last_multi_time = multiple_at_cache[tick_time_field][-1]
             else:
                 last_multi_time = ever_begin_time
-            freq_num = int(freq[:-1])
+            freq_number = int(freq[:-1])
             end_date_idx = bisect.bisect_right(at_cache[tick_time_field], ever_begin_time)
-            multi_minutes = at_cache[tick_time_field][end_date_idx:][0::freq_num]
+            multi_minutes = at_cache[tick_time_field][end_date_idx:][0::freq_number]
             multi_idx = bisect.bisect_right(multi_minutes, last_multi_time)
             if multi_idx == 0:
                 multi_rt_array = np.mat([[at_cache[e][end_date_idx]for e in EQUITY_RT_VALUE_FIELDS]])
                 multi_time_array = np.mat([
                     [at_cache['barTime'][end_date_idx], at_cache[tick_time_field][end_date_idx]]])
-                _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array)
+                _concatenate_multiple_freq(multiple_at_cache, multi_rt_array, multi_time_array)
                 multi_idx = 1
 
             begin_minute = multi_minutes[multi_idx - 1]
             begin_idx = bisect.bisect_right(at_cache[tick_time_field], begin_minute)
-            at_data_added = _finalize_at_data(at_cache, begin_idx, freq_num)
+            at_data_added = _aggregate_at_multiple_data(at_cache, begin_idx, freq_number)
             if at_data_added:
                 multi_rt_array = np.mat([at_data_added[e] for e in EQUITY_RT_VALUE_FIELDS]).T
                 multi_time_array = np.mat(
                     [at_data_added['barTime'], at_data_added[tick_time_field]]).T
                 inplace = False if begin_minute == last_multi_time else True
-                _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array, inplace=inplace)
-
-
-def _compact_multiple_freq(symbol_at, multi_rt_array, multi_time_array, inplace=False, tick_time_field='tradeTime'):
-    """
-    拍平增量的已聚合多周期分钟线
-    Args:
-        symbol_at:
-        multi_rt_array:
-        multi_time_array:
-        inplace(Boolean): 是否替换之前最后一根
-        tick_time_field:
-
-    Returns:
-
-    """
-    column_size = symbol_at[tick_time_field].size
-    total_column_size = column_size + len(multi_time_array)
-    if inplace:
-        total_column_size -= 1
-    matrix = np.zeros((len(EQUITY_RT_VALUE_FIELDS), total_column_size))
-
-    for _, field in enumerate(EQUITY_RT_VALUE_FIELDS):
-        if inplace:
-            matrix[_, :column_size] = symbol_at[field][:, :-1]
-        else:
-            matrix[_, :column_size] = symbol_at[field]
-    matrix[:, -1] = multi_rt_array
-    for i, _ in enumerate(matrix):
-        symbol_at[EQUITY_RT_VALUE_FIELDS[i]] = _
-
-    matrix_time = np.empty((len(EQUITY_RT_TIME_FIELDS), total_column_size), dtype='|S16')
-    for _, field in enumerate(EQUITY_RT_TIME_FIELDS):
-        if inplace:
-            matrix_time[_, :column_size] = symbol_at[field][:, :-1]
-        else:
-            matrix_time[_, :column_size] = symbol_at[field]
-    matrix_time[:, -1] = multi_time_array
-    for i, _ in enumerate(matrix_time):
-        symbol_at[EQUITY_RT_TIME_FIELDS[i]] = _
-
-
-def _finalize_at_data(at_minute_cache, begin_index, freq):
-    """
-    聚合增量的一根或多根多周期分钟线
-    Args:
-        at_minute_cache:
-        begin_index:
-        freq:
-
-    Returns:
-
-    """
-    result = {}
-    if at_minute_cache['tradeTime'][begin_index:].size == 0:
-        return result
-    pad_len = -at_minute_cache['tradeTime'][begin_index:].size % freq
-    for attribute, array in at_minute_cache.iteritems():
-        minute_data = array[begin_index:]
-        minute_pad = np.pad(minute_data, (0, pad_len), mode='constant', constant_values=(np.nan,))
-        multi_data = np.resize(minute_pad, (minute_pad.size/freq, freq))
-        if attribute in ['barTime', 'closePrice', 'tradeTime']:
-            data = multi_data[:, -1]
-            data[-1] = array[-1]
-        elif attribute == 'openPrice':
-            data = multi_data[:, 0]
-        elif attribute == 'highPrice':
-            data = np.nanmax(multi_data, axis=1)
-        elif attribute == 'lowPrice':
-            data = np.nanmin(multi_data, axis=1)
-        elif attribute in ['turnoverValue', 'turnoverVol']:
-            data = np.nansum(multi_data, axis=1)
-        else:
-            raise Exception('Bad attribute in minute bar data.')
-        result[attribute] = data
-    return result
+                _concatenate_multiple_freq(multiple_at_cache, multi_rt_array, multi_time_array, inplace=inplace)
