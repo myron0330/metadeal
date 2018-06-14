@@ -40,7 +40,7 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
     sim_params = parse_sim_params(config, local_variables)
     clock = Clock(sim_params.freq)
     data_portal = DataPortal()
-    data_portal.batch_load_data(sim_params, disable_service=['market_service'])
+    data_portal.batch_load_data(sim_params)
     event_engine = EventEngine()
     trading_scheduler = TradingScheduler(start=sim_params.start, end=sim_params.end,
                                          freq=sim_params.freq,
