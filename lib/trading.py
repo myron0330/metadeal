@@ -22,7 +22,7 @@ from . trading_agent import TradingAgent
 from . configs import ctp_config
 
 
-def trading(strategy_code, config=None, connect_json=None, **kwargs):
+def trading(strategy_code, config=None, connect_json=None, debug=False, **kwargs):
     """
     Trading function according to strategy code.
 
@@ -30,6 +30,7 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
         strategy_code(string): strategy code
         config(dict): config parameters
         connect_json(string): connection json path
+        debug(boolean): whether to debug
         **kwargs: key-value parameters
     """
     with open(connect_json, 'r+') as connect_file:
@@ -54,7 +55,9 @@ def trading(strategy_code, config=None, connect_json=None, **kwargs):
             market_service=data_portal.market_service,
             trading_days=data_portal.calendar_service.all_trading_days,
             daily_bar_loading_rate=60,
-            minute_bar_loading_rate=5)
+            minute_bar_loading_rate=5,
+            debug=debug,
+            paper=True)
     ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          ctp_gateway=ctp_gateway)

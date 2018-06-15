@@ -582,6 +582,7 @@ class MarketRoller(object):
                 multi_time_array = np.mat([
                     [at_cache['barTime'][end_date_idx], at_cache[tick_time_field][end_date_idx]]])
                 _concatenate_multiple_freq(multiple_at_cache, multi_rt_array, multi_time_array)
+                last_multi_time = multiple_at_cache[tick_time_field][-1]
                 multi_idx = 1
 
             begin_minute = multi_minutes[multi_idx - 1]
@@ -591,5 +592,5 @@ class MarketRoller(object):
                 multi_rt_array = np.mat([at_data_added[e] for e in EQUITY_RT_VALUE_FIELDS]).T
                 multi_time_array = np.mat(
                     [at_data_added['barTime'], at_data_added[tick_time_field]]).T
-                inplace = False if begin_minute == last_multi_time else True
+                inplace = begin_minute != last_multi_time
                 _concatenate_multiple_freq(multiple_at_cache, multi_rt_array, multi_time_array, inplace=inplace)
