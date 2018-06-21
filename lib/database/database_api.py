@@ -3,19 +3,27 @@
 #     File: Database API.
 #     Desc: define general database API for the service.
 # **********************************************************************************#
+import os
+import json
 import bisect
 import DataAPI
+import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
+os.environ['privilege'] = json.dumps({'basic': 1})
 BATCH_DAILY_DATA_SIZE = 20000
 MARKET_DATA_BATCH_COEFFICIENT = 1
 BATCH_MINUTE_DATA_SIZE = 200
 BATCH_FILTER_DAY_SIZE = 100
 MAX_THREADS = 5
 MIN_BATCH_SIZE = 8
+FUTURES_DAILY_FIELDS = ['tradeDate', 'openPrice', 'highPrice', 'lowPrice', 'closePrice', 'settlementPrice',
+                        'volume', 'openInterest', 'preSettlementPrice', 'turnoverVol', 'turnoverValue']
+FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'highPrice', 'lowPrice',
+                         'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue', 'openInterest']
 
 
 def _normalize_date(date):
@@ -74,7 +82,7 @@ def get_direct_trading_day(date, step, forward):
     return target_trading_days[target_index]
 
 
-def load_daily_futures_data(universe, trading_days, attributes='closePrice', **kwargs):
+def load_daily_futures_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
     """
     Load daily futures data.
 
@@ -121,6 +129,8 @@ def load_daily_futures_data(universe, trading_days, attributes='closePrice', **k
                                       endDate=trading_days[-1])
         raw_data.rename(columns=attribute_to_database, inplace=True)
         raw_data['symbol'] = raw_data.ticker.apply(lambda x: x.upper())
+        raw_data['volume'] = raw_data['turnoverVol']
+        raw_data['openInterest'] = raw_data['openInt']
         result = dict()
         for _ in attributes:
             result[_] = raw_data.pivot(index='tradeDate', columns='symbol', values=_)
@@ -140,18 +150,101 @@ def load_daily_futures_data(universe, trading_days, attributes='closePrice', **k
     return data_all
 
 
-
-def load_minute_futures_data(*args, **kwargs):
+def load_minute_futures_data(universe=None, trading_days=None, field=FUTURES_MINUTE_FIELDS, freq='m'):
     """
+    Load futures minute data concurrently.
+    Available data: closePrice, highPrice, lowPrice, openPrice, turnoverVol, clearingDate, barTime, tradeDate
 
     Args:
-        *args:
-        **kwargs:
-
+        universe (list of str): futures universe list
+        trading_days (list of datetime.datetime): trading days list
+        field (list of string): needed fields
     Returns:
+        dict of str=>DataFrame: key-->field，value-->DataFrame
+
+    Examples:
+        >> universe = ['IF1601']
+        >> trading_days = get_trading_days()
+        >> equity_data = load_minute_futures_data(universe, trading_days, ['closePrice'])
 
     """
-    return
+    universe = list(universe)
+    trading_days_index = [dt.strftime("%Y-%m-%d") for dt in trading_days]
+    trading_days = [dt.strftime("%Y%m%d") for dt in trading_days]
+    trading_days_length = len(trading_days)
+    universe_length = len(universe)
+
+    batch_size = max(1, BATCH_MINUTE_DATA_SIZE // trading_days_length)
+    batches = [universe[i:min(i+batch_size, universe_length)] for i in range(0, universe_length, batch_size)]
+
+    def _worker(index, batch):
+        import os
+        import json
+        data_cube_fields = [
+            'openPrice', 'highPrice', 'lowPrice',
+            'closePrice', 'turnoverVol', 'turnoverValue',
+            'openInterest', 'tradeDate'
+        ]
+        os.environ['privilege'] = json.dumps({'basic': 1})
+        data = DataAPI.get_data_cube(symbol=batch, field=data_cube_fields,
+                                     start=trading_days[0],
+                                     end=trading_days[-1],
+                                     freq='m')
+        result = dict()
+
+        for symbol in batch:
+            symbol_data = data[symbol]
+            symbol_data.dropna(inplace=True)
+            trade_dates = symbol_data['tradeDate'].tolist()
+            sorted_trade_dates = sorted(set(trade_dates), key=trade_dates.index)
+            next_date_mapping = dict(zip(sorted_trade_dates[:-1], sorted_trade_dates[1:]))
+
+            def _transfer_clearing_date(trade_time):
+                """
+                Transfer clearing date based on  trade time.
+                """
+                date, minute = trade_time.split(' ')
+                if minute >= '21:00':
+                    return next_date_mapping[date]
+                return date
+
+            symbol_data['tradeTime'] = symbol_data.index
+            symbol_data['clearingDate'] = symbol_data.tradeTime.apply(_transfer_clearing_date)
+            symbol_data['barTime'] = map(lambda x: x.split(' ')[-1], symbol_data.index)
+            symbol_data['volume'] = symbol_data['turnoverVol']
+            symbol_data['symbol'] = symbol
+            frame_list = [symbol_data[symbol_data.clearingDate == _] for _ in set(symbol_data['clearingDate'])]
+            symbol_result = dict()
+            keys = symbol_data.keys()
+            for index, key in enumerate(keys):
+                symbol_result[key] = np.array([_[key].tolist() for _ in frame_list]).tolist()
+                if key in ['clearingDate', 'symbol']:
+                    result_length = len(symbol_result[key])
+                    valid_array = reduce(lambda x, y: x + y, symbol_result[key])
+                    adjusted_array = sorted(set(valid_array), key=valid_array.index)
+                    symbol_result[key] = adjusted_array * int(result_length / len(adjusted_array))
+            result[symbol] = symbol_result
+        return index, result
+
+    with ThreadPoolExecutor(MAX_THREADS) as pool:
+        requests = [pool.submit(_worker, idx, bat) for (idx, bat) in enumerate(batches)]
+        responses = {future.result()[0]: future.result()[1] for future in as_completed(requests)}
+
+    data_all = {}
+    zero_item = []
+    zeros = [zero_item for _ in xrange(trading_days_length)]
+    for response in sorted(responses.items(), key=lambda x: x[0]):
+        _, data = response
+        data_all.update(data)
+    data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False) for (key, item) in data_all.iteritems()}
+    data_all = dict(pd.Panel.from_dict(data_all).swapaxes(0, 2))
+    for var, values in data_all.iteritems():
+        for sec in set(universe) - set(data_all[var].keys()):
+            values[sec] = zeros
+        for ticker, t_minute in values.iteritems():
+            values[ticker] = map(np.array, t_minute)
+        data_all[var] = pd.DataFrame(values, index=trading_days_index, columns=universe)
+    return data_all
 
 
 def get_futures_base_info(symbols=None):
@@ -194,12 +287,15 @@ def get_futures_main_contract(contract_objects=None, trading_days=None, start=No
 
 
 if __name__ == '__main__':
-    print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
-    print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)
-    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
-    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
-    print get_futures_base_info(['RB1810'])
-    print get_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')
-    universe = ['RB1810', 'RM809']
-    trading_days = get_trading_days('20180301', '20180401')
-    print load_daily_futures_data(universe, trading_days, attributes=['closePrice', 'turnoverValue'])
+    # print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
+    # print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)
+    # print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
+    # print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
+    # print get_futures_base_info(['RB1810'])
+    # print get_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')
+    # print load_daily_futures_data(['RB1810', 'RM809'],
+    #                               get_trading_days('20180301', '20180401'),
+    #                               attributes=['closePrice', 'turnoverValue'])
+    # print load_daily_futures_data(['RB1810', 'RM809'],
+    #                               get_trading_days('20180301', '20180401'))
+    print load_minute_futures_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))

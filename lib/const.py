@@ -69,7 +69,7 @@ OPTION_PATTERN = re.compile(SYMBOL_PATTERN_OPTION)
 FUTURES_DAILY_FIELDS = ['tradeDate', 'openPrice', 'highPrice', 'lowPrice', 'closePrice', 'settlementPrice',
                         'volume', 'openInterest', 'preSettlementPrice', 'turnoverVol', 'turnoverValue']
 FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'highPrice', 'lowPrice',
-                         'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue']
+                         'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue', 'openInterest']
 
 
 ADJ_FACTOR = 'default_adj_factor'
