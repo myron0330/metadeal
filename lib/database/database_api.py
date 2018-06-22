@@ -82,9 +82,9 @@ def get_direct_trading_day(date, step, forward):
     return target_trading_days[target_index]
 
 
-def load_daily_futures_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
+def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
     """
-    Load daily futures data.
+    Load futures daily data.
 
     Args:
         universe(list): universe symbols list
@@ -150,7 +150,7 @@ def load_daily_futures_data(universe, trading_days, attributes=FUTURES_DAILY_FIE
     return data_all
 
 
-def load_minute_futures_data(universe=None, trading_days=None, field=FUTURES_MINUTE_FIELDS, freq='m'):
+def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MINUTE_FIELDS, freq='m'):
     """
     Load futures minute data concurrently.
     Available data: closePrice, highPrice, lowPrice, openPrice, turnoverVol, clearingDate, barTime, tradeDate
@@ -177,7 +177,7 @@ def load_minute_futures_data(universe=None, trading_days=None, field=FUTURES_MIN
     batch_size = max(1, BATCH_MINUTE_DATA_SIZE // trading_days_length)
     batches = [universe[i:min(i+batch_size, universe_length)] for i in range(0, universe_length, batch_size)]
 
-    def _worker(index, batch):
+    def _loader(index, batch):
         import os
         import json
         data_cube_fields = [
@@ -227,7 +227,7 @@ def load_minute_futures_data(universe=None, trading_days=None, field=FUTURES_MIN
         return index, result
 
     with ThreadPoolExecutor(MAX_THREADS) as pool:
-        requests = [pool.submit(_worker, idx, bat) for (idx, bat) in enumerate(batches)]
+        requests = [pool.submit(_loader, idx, bat) for (idx, bat) in enumerate(batches)]
         responses = {future.result()[0]: future.result()[1] for future in as_completed(requests)}
 
     data_all = {}
@@ -298,4 +298,5 @@ if __name__ == '__main__':
     #                               attributes=['closePrice', 'turnoverValue'])
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
-    print load_minute_futures_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    print data

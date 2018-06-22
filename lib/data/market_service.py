@@ -15,8 +15,8 @@ from . asset_service import AssetType, AssetService
 from .. data.universe_service import UniverseService, Universe
 from .. core.enums import SecuritiesType
 from .. database.database_api import (
-    load_daily_futures_data,
-    load_minute_futures_data,
+    load_futures_daily_data,
+    load_futures_minute_data,
 )
 
 from .. const import (
@@ -753,7 +753,7 @@ class FuturesMarketData(MarketData):
 
     @staticmethod
     def _daily_data_loader(universe, trading_days, fields):
-        daily_data = load_daily_futures_data(universe, trading_days, FUTURES_DAILY_FIELDS)
+        daily_data = load_futures_daily_data(universe, trading_days, FUTURES_DAILY_FIELDS)
         if 'turnoverVol' in fields:
             daily_data['turnoverVol'] = daily_data.get('turnoverVol', daily_data.get('volume'))
         return daily_data
@@ -763,7 +763,7 @@ class FuturesMarketData(MarketData):
         """
         FuturesMarketData.minute_bars的具体加载函数
         """
-        minute_data = load_minute_futures_data(universe, trading_days, FUTURES_MINUTE_FIELDS, freq=freq)
+        minute_data = load_futures_minute_data(universe, trading_days, FUTURES_MINUTE_FIELDS, freq=freq)
         if 'turnoverVol' in fields:
             minute_data['turnoverVol'] = minute_data['volume']
         return minute_data
