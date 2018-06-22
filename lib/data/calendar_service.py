@@ -11,7 +11,7 @@ from .. const import (
     EARLIEST_DATE,
     DEFAULT_KEYWORDS
 )
-k
+
 
 class CalendarService(ServiceInterface):
     """

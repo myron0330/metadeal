@@ -59,7 +59,14 @@ def get_trading_days(start, end):
         list of datetime: trading days list
 
     """
-    return DataAPI.get_trading_days(start=start, end=end)
+    start = _normalize_date(start).strftime('%Y%m%d')
+    end = _normalize_date(end).strftime('%Y%m%d')
+    url = '/api/master/getTradeCal.json?field=&exchangeCD=XSHG,XSHE&beginDate={}&endDate={}'.format(start, end)
+    code, data = client.getData(url)
+    if code != 200:
+        raise Exception
+    data = json.loads(data)['data']
+    return map(lambda x: _normalize_date(x['calendarDate']), filter(lambda x: x['isOpen'] == 1, data))
 
 
 def get_direct_trading_day(date, step, forward):
@@ -78,8 +85,8 @@ def get_direct_trading_day(date, step, forward):
     date = _normalize_date(date)
     start_date = date - timedelta(100)
     end_date = date + timedelta(100)
-    target_trading_days = DataAPI.get_trading_days(start=start_date,
-                                                   end=end_date)
+    target_trading_days = get_trading_days(start=start_date,
+                                           end=end_date)
     date_index = bisect.bisect_left(target_trading_days, date)
     target_index = date_index + (1 if forward else -1) * step
     return target_trading_days[target_index]
@@ -127,9 +134,13 @@ def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIE
             'settlePrice': 'settlementPrice',
             'preSettlePrice': 'preSettlementPrice',
         }
-        raw_data = DataAPI.MktFutdGet(ticker=batch,
-                                      beginDate=trading_days[0],
-                                      endDate=trading_days[-1])
+        ticker = ','.join(batch)
+        begin_date, end_date = trading_days[0], trading_days[-1]
+        url = '/api/market/getMktFutd.json?ticker={}&beginDate={}&endDate={}'.format(ticker, begin_date, end_date)
+        code, data = client.getData(url)
+        if code != 200:
+            raise Exception
+        raw_data = pd.DataFrame(json.loads(data)['data'])
         raw_data.rename(columns=attribute_to_database, inplace=True)
         raw_data['symbol'] = raw_data.ticker.apply(lambda x: x.upper())
         raw_data['volume'] = raw_data['turnoverVol']
@@ -285,10 +296,15 @@ def load_futures_base_info(symbols=None):
     Args:
         symbols(list): basic future symbols
     """
+    url = '/api/future/getFutu.json'
     if symbols:
-        data = DataAPI.FutuGet(ticker=symbols)
+        url = '?'.join([url, 'ticker={}'.format(','.join(symbols))])
+        code, data = client.getData(url)
     else:
-        data = DataAPI.FutuGet()
+        code, data = client.getData(url)
+    if code != 200:
+        raise Exception
+    data = pd.DataFrame(json.loads(data)['data'])
     rename_dict = {
         'ticker': 'symbol'
     }
@@ -307,9 +323,13 @@ def load_futures_main_contract(contract_objects=None, trading_days=None, start=N
         start(string or datetime.datetime): start date
         end(string or datetime.datetime): end date
     """
-    start = start or trading_days[0]
-    end = end or trading_days[-1]
-    data = DataAPI.MktMFutdGet(mainCon=1, startDate=start, endDate=end, pandas="1")
+    start = _normalize_date(start or trading_days[0]).strftime('%Y%m%d')
+    end = _normalize_date(end or trading_days[-1]).strftime('%Y%m%d')
+    url = '/api/market/getMktMFutd.json?mainCon=1&startDate={}&endDate={}'.format(start, end)
+    code, data = client.getData(url)
+    if code != 200:
+        raise Exception
+    data = pd.DataFrame(json.loads(data)['data'])
     data.ticker = data.ticker.apply(lambda x: x.upper())
     frame = data.pivot(index='tradeDate', columns='contractObject', values='ticker')
     if contract_objects:
@@ -318,17 +338,18 @@ def load_futures_main_contract(contract_objects=None, trading_days=None, start=N
 
 
 if __name__ == '__main__':
-    # print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
-    # print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)
-    # print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
-    # print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
-    # print get_futures_base_info(['RB1810'])
-    # print get_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')
-    # print load_daily_futures_data(['RB1810', 'RM809'],
-    #                               get_trading_days('20180301', '20180401'),
-    #                               attributes=['closePrice', 'turnoverValue'])
+    print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
+    print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)
+    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
+    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
+    print load_futures_base_info(['RB1810'])
+    print load_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')
+    daily_data = load_futures_daily_data(['RB1810', 'RM809'],
+                                         get_trading_days('20180301', '20180401'),
+                                         attributes=['closePrice', 'turnoverValue'])
+    print daily_data
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
     # test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
-    test_data = load_futures_rt_minute_data(['RB1810'])
-    print test_data
+    # test_data = load_futures_rt_minute_data(['RB1810'])
+    # print test_data
