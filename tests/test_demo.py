@@ -52,6 +52,7 @@ def on_tick(context, tick):
 
 
 class TestDemo(TestCase):
+
     def setUp(self):
         self.strategy_code = DEFAULT_STRATEGY
         self.connect_json = 'CTP_connect.json'

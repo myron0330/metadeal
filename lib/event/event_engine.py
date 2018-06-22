@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: Event engine
 # **********************************************************************************#
-from queue import Queue, Empty
+from Queue import Queue, Empty
 from threading import Thread
 from utils.dict_utils import DefaultDict
 from . event_base import Event, EventType
