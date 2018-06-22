@@ -11,8 +11,8 @@ from utils.datetime_utils import (
     get_current_date)
 from . base_service import ServiceInterface
 from .. database.database_api import (
-    get_futures_base_info,
-    get_futures_main_contract
+    load_futures_base_info,
+    load_futures_main_contract
 )
 from .. trade.cost import Commission, Slippage
 from .. core.pattern import (
@@ -509,9 +509,9 @@ class AssetService(ServiceInterface):
         """
         result = list()
         if subset is 'all' or isinstance(subset, (list, set)) and len(subset) > 50:
-            futures_asset_data_raw = get_futures_base_info()
+            futures_asset_data_raw = load_futures_base_info()
         elif subset is not None and 0 < len(subset) <= 50:
-            futures_asset_data_raw = get_futures_base_info(subset)
+            futures_asset_data_raw = load_futures_base_info(subset)
         else:
             return result
         for _, item in futures_asset_data_raw.iterrows():
@@ -535,8 +535,8 @@ class AssetService(ServiceInterface):
             symbol: get_future_contract_object(symbol) for symbol in continuous_future_assets
         }
         main_contracts = \
-            get_futures_main_contract(contract_objects=contract_objects_dictionary.values(),
-                                      trading_days=[previous_date]).T.to_dict()[previous_date]
+            load_futures_main_contract(contract_objects=contract_objects_dictionary.values(),
+                                       trading_days=[previous_date]).T.to_dict()[previous_date]
         for symbol, contract_object in contract_objects_dictionary.iteritems():
             result.append(ContinuousFuturesAssetInfo(
                 symbol=symbol,

@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from api_client import Client
 
 
 os.environ['privilege'] = json.dumps({'basic': 1})
@@ -24,6 +25,8 @@ FUTURES_DAILY_FIELDS = ['tradeDate', 'openPrice', 'highPrice', 'lowPrice', 'clos
                         'volume', 'openInterest', 'preSettlementPrice', 'turnoverVol', 'turnoverValue']
 FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'highPrice', 'lowPrice',
                          'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue', 'openInterest']
+client = Client()
+client.init('602bada78f4eb803470a5b8754eb956da631fc072e116deb39b7c85b94d070dc')
 
 
 def _normalize_date(date):
@@ -247,7 +250,35 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
     return data_all
 
 
-def get_futures_base_info(symbols=None):
+def load_futures_rt_minute_data(universe):
+    """
+    Load futures real-time minute data of current date.
+
+    Args:
+        universe(list): futures list
+
+    Returns:
+        dict: minute bar data
+    """
+    assert isinstance(universe, (list, tuple, set))
+    universe_string = ','.join(universe)
+    url = '/api/market/getFutureBarRTIntraDay.json?instrumentID={}&unit=1'.format(universe_string)
+    code, data = client.getData(url)
+    if code != 200:
+        raise Exception
+    data = json.loads(data)['data']
+
+    def _transfer_bar(response):
+        bar_data = dict()
+        for item in response:
+            symbol = item['ticker'].upper()
+            bar_data[symbol] = item['barBodys']
+        return bar_data
+
+    return _transfer_bar(data)
+
+
+def load_futures_base_info(symbols=None):
     """
     Get futures base info.
 
@@ -266,7 +297,7 @@ def get_futures_base_info(symbols=None):
     return data
 
 
-def get_futures_main_contract(contract_objects=None, trading_days=None, start=None, end=None):
+def load_futures_main_contract(contract_objects=None, trading_days=None, start=None, end=None):
     """
     Get futures main contract
 
@@ -298,5 +329,6 @@ if __name__ == '__main__':
     #                               attributes=['closePrice', 'turnoverValue'])
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
-    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    # test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    test_data = load_futures_rt_minute_data(['RB1810'])
     print test_data
