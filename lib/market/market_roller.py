@@ -237,8 +237,12 @@ class MarketRoller(object):
                 frame = self.tas_daily_cache[date]
                 next_frame = self.tas_daily_cache[next_date]
                 if ADJ_FACTOR in frame.columns:
+                    frame[ADJ_FACTOR] = frame[ADJ_FACTOR].fillna(1)
+                    if ADJ_FACTOR in next_frame.columns:
+                        next_frame[ADJ_FACTOR] = next_frame[ADJ_FACTOR].fillna(1)
+                    else:
+                        next_frame[ADJ_FACTOR] = frame[ADJ_FACTOR]
                     frame[ADJ_FACTOR] = frame[ADJ_FACTOR] / next_frame[ADJ_FACTOR]
-
             self.tas_daily_cache = \
                 {datetime.strptime(key, '%Y-%m-%d'): value for key, value in self.tas_daily_cache.iteritems()}
         if not self.tas_daily_expanded_cache or current_date not in self.tas_daily_expanded_cache:
