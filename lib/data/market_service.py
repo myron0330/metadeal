@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict, defaultdict
 from copy import copy
+from utils.adjust_utils import *
 from utils.datetime_utils import (
     get_end_date,
     get_previous_trading_date,
@@ -479,7 +480,6 @@ class MarketService(object):
         return minute_cache_data
 
 
-
 class MarketData(object):
     """
     行情内容包装类
@@ -534,6 +534,7 @@ class MarketData(object):
         Args:
             trading_days(list of datetime): 需加载的交易日，backtest中已含max_window_history
             max_cache_days(int): daily_bars最大加载的交易天数，默认加载全部交易日
+            asset_service()
         """
         self.daily_bars = _rolling_load_data(self.daily_bars, trading_days, self.universe, max_cache_days,
                                              self._daily_bars_loader, self.daily_fields)
@@ -734,8 +735,8 @@ class FuturesMarketData(MarketData):
         self._prev_clearing_date_map = {key.strftime('%Y-%m-%d'): value.strftime('%Y-%m-%d')
                                         for key, value in self._prev_clearing_date_map.iteritems()}
         continuous_list = asset_service.filter_symbols(asset_type=AssetType.CONTINUOUS_FUTURES)
-        if len(continuous_list) > 0:
-            self.calc_continuous_fq_factors(continuous_list, asset_service._artificial_switch_info)
+        # if len(continuous_list) > 0:
+        #     self.calc_continuous_fq_factors(continuous_list, asset_service._artificial_switch_info)
 
     def rolling_load_minute_data(self, trading_days, max_cache_days):
         """
