@@ -74,10 +74,13 @@ FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'h
 
 ADJ_FACTOR = 'default_adj_factor'
 MAX_CACHE_DAILY_PERIODS = 10
-TRADE_ESSENTIAL_FIELDS_DAILY = ['preClosePrice', 'openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol',
-                                'volume', 'preSettlementPrice', 'settlementPrice', 'openInterest', 'turnoverValue',
-                                'nav', 'accumNav', 'adjustNav', 'adjFactor']
-TRADE_ESSENTIAL_FIELDS_MINUTE = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'barTime',
-                                 'tradeTime']
-HISTORY_ESSENTIAL_FIELDS_MINUTE = ['openPrice', 'closePrice', 'highPrice', 'lowPrice', 'turnoverVol', 'turnoverValue',
-                                   'barTime', 'tradeTime']
+TRADE_ESSENTIAL_DAILY_BAR_FIELDS = ['preClosePrice', 'openPrice', 'closePrice', 'highPrice',
+                                    'lowPrice', 'turnoverVol', 'volume', 'preSettlementPrice',
+                                    'settlementPrice', 'openInterest', 'turnoverValue',
+                                    'nav', 'accumNav', 'adjustNav', 'adjFactor']
+TRADE_ESSENTIAL_MINUTE_BAR_FIELDS = ['openPrice', 'closePrice', 'highPrice', 'lowPrice',
+                                     'turnoverVol', 'barTime', 'tradeTime']
+HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS = ['openPrice', 'closePrice', 'highPrice', 'lowPrice',
+                                       'turnoverVol', 'turnoverValue', 'barTime', 'tradeTime']
+REAL_TIME_MINUTE_BAR_FIELDS = ['barTime', 'closePrice', 'highPrice', 'lowPrice', 'openPrice',
+                               'totalValue', 'totalVolume']

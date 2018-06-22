@@ -298,5 +298,5 @@ if __name__ == '__main__':
     #                               attributes=['closePrice', 'turnoverValue'])
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
-    data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
-    print data
+    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    print test_data

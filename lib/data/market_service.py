@@ -24,10 +24,20 @@ from .. const import (
     CONTINUOUS_FUTURES_PATTERN,
     FUTURES_DAILY_FIELDS,
     FUTURES_MINUTE_FIELDS,
-    TRADE_ESSENTIAL_FIELDS_MINUTE
+    TRADE_ESSENTIAL_MINUTE_BAR_FIELDS,
+    REAL_TIME_MINUTE_BAR_FIELDS
 )
 
 MULTI_FREQ_PATTERN = re.compile('(\d+)m')
+CURRENT_BAR_FIELDS_MAP = {
+    'barTime': 'barTime',
+    'closePrice': 'closePrice',
+    'highPrice': 'highPrice',
+    'lowPrice': 'lowPrice',
+    'openPrice': 'openPrice',
+    'totalValue': 'turnoverValue',
+    'totalVolume': 'turnoverVol'
+}
 
 
 def _ast_stylish(raw_data_dict, symbols, time_bars, fields, style, rtype='frame'):
@@ -225,6 +235,66 @@ def _append_data(raw_data, sliced_data, style, rtype='frame'):
     return result
 
 
+def _load_current_bars_by_now(current_trading_day, universe, fields, load_func):
+    """
+    加载交易日当天日内已产生的分钟线压缩成AST array
+    Args:
+        current_trading_day(datetime.datetime): 模拟交易当前交易日
+        universe(list or set): equity symbol list or set
+        fields(list of string): attribute list
+        load_func(func): 加载当前交易日已聚合的接口方法
+
+    Returns(dict):
+        attribute: df
+
+    """
+    sta_data = load_func(current_trading_day, universe, fields)
+
+    a_df_dict = {}
+    current_str = current_trading_day.strftime('%Y-%m-%d')
+    # todo: 期货未加载持仓量的分钟线bar数据
+    for field in REAL_TIME_MINUTE_BAR_FIELDS:
+        s_array_dict = {}
+        default_array = np.array([], dtype='S') if field in ['barTime', 'tradeTime'] else np.array([])
+        for symbol in universe:
+            s_array_dict.update(
+                {symbol: np.array([e[field] for e in sta_data[symbol]] if symbol in sta_data else default_array)})
+        a_df_dict.update({
+            CURRENT_BAR_FIELDS_MAP[field]: pd.DataFrame.from_dict({current_str: s_array_dict}, orient='index')})
+    a_df_dict['barTime'] = a_df_dict['barTime'].applymap(lambda x: np.char.encode(x))
+
+    def _map_to_date(bar_time, prev_trading_day, prev_next_date, curr_trading_day):
+        """
+        返回bar_time所对应的日期
+        """
+        if bar_time.startswith('2'):
+            date = prev_trading_day
+        elif bar_time[:2] < '09':
+            date = prev_next_date
+        else:
+            date = curr_trading_day
+        return date + bar_time
+
+    vmap_date = np.vectorize(_map_to_date, otypes=[basestring])
+    if 'tradeTime' in fields or 'tradeDate' in fields:
+        prev_trading_day = get_previous_trading_date(current_trading_day)
+        prev_trading_str = prev_trading_day.strftime('%Y-%m-%d ')
+        prev_next_day = prev_trading_day + datetime.timedelta(days=1)
+        prev_next_str = prev_next_day.strftime('%Y-%m-%d ')
+        curr_trading_str = current_trading_day.strftime('%Y-%m-%d ')
+        trade_time_df = a_df_dict['barTime'].applymap(lambda x:
+                                                      vmap_date(x, prev_trading_str, prev_next_str, curr_trading_str))
+        if 'tradeTime' in fields:
+            a_df_dict['tradeTime'] = trade_time_df
+        if 'tradeDate' in fields:
+            a_df_dict['tradeDate'] = trade_time_df.applymap(lambda x:
+                                                            np.core.defchararray.rjust(x.astype(str), width=10))
+    if 'clearingDate' in fields:
+        a_df_dict['clearingDate'] = a_df_dict['barTime'].applymap(lambda x:
+                                                                  np.full_like(x, fill_value=current_str))
+    return a_df_dict
+
+
 class MarketService(object):
     """
     行情数据服务类
@@ -413,9 +483,6 @@ class MarketService(object):
             if market_data is not None:
                 market_data.rolling_load_minute_data(trading_days, max_cache_days)
                 self.minute_bars_loaded_days = market_data.minute_bars_loaded_days or self.minute_bars_loaded_days
-        normalized_trading_days = [td.strftime('%Y%m%d') for td in trading_days]
-        current_minute_bar_map = load_minute_bar_map(normalized_trading_days, self.universe_service.full_universe)
-        self.minute_bar_map.update(current_minute_bar_map)
 
     def available_fields(self, freq='d'):
         """
@@ -448,7 +515,71 @@ class MarketService(object):
         if account_type == SecuritiesType.futures:
             return self.futures_market_data
 
-    def prepare_minute_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_FIELDS_MINUTE):
+    def load_current_trading_day_bars(self, current_trading_day, debug=False):
+        """
+        Load current trading day bars
+
+        Args:
+            current_trading_day(datetime.datetime): current trading day
+            debug(boolean): debug or not
+        """
+        normalized_today_minutes = set()
+        for market_data in self.market_data_list:
+            if market_data is not None:
+                market_bar_time = market_data.load_current_trading_day_bars(current_trading_day, debug=debug)
+                normalized_today_minutes |= market_bar_time
+                self.minute_bars_loaded_days = market_data.minute_bars_loaded_days or self.minute_bars_loaded_days
+        today_minutes = sorted(normalized_today_minutes)
+        if '21:00' in today_minutes:
+            begin_index = today_minutes.index('21:00')
+            today_minutes = today_minutes[begin_index:] + today_minutes[:begin_index]
+        current_minute_bar_map = {current_trading_day.strftime('%Y-%m-%d'): today_minutes}
+        self.minute_bar_map.update(current_minute_bar_map)
+
+    def back_fill_rt_bar_times(self, date, bar_time_list):
+        """
+        模拟交易场景填充实时分钟bar
+
+        Args:
+            date(datetime.datetime): date
+            bar_time_list(list): list of barTime
+        """
+        date_string = date.strftime('%Y-%m-%d')
+        if date_string not in self.minute_bar_map:
+            return
+        if bar_time_list:
+            self.minute_bar_map[date_string].extend(bar_time_list)
+
+    def prepare_daily_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_MINUTE_BAR_FIELDS):
+        """
+        准备分钟线cache数据
+
+        Args:
+            symbols(list): symbol list
+            end_date(string): end date
+            time_range(int): time range
+            fields(list): field list
+        """
+        daily_cache_data = {e: {} for e in ['tas', 'sat', 'ast']}
+        for market_data in self.market_data_list:
+            selected_universe = self.asset_service.filter_symbols(asset_type=market_data.asset_type, symbols=symbols)
+            selected_universe = list(selected_universe)
+            if not len(selected_universe):
+                continue
+            ast_array, time_bars = market_data.slice(selected_universe, fields, end_date, freq='d',
+                                                     time_range=time_range, rtype='array',
+                                                     cached_trading_days=self.calendar_service.cache_all_trading_days,
+                                                     no_stylish=True)
+            adj_data_dict, time_bars = \
+                market_data.adjust(ast_array, selected_universe, time_bars, f_adj=None, s_adj='pre_adj', freq='d')
+            for k, cache_item in daily_cache_data.iteritems():
+                raw_data_dict = ast_array if k == 'tas' else adj_data_dict
+                daily_cache_data[k] = \
+                    _append_data(cache_item, _ast_stylish(raw_data_dict, selected_universe, time_bars,
+                                                          fields, k, rtype='array'), k, rtype='array')
+        return daily_cache_data
+
+    def prepare_minute_cache(self, symbols, end_date, time_range, fields=TRADE_ESSENTIAL_MINUTE_BAR_FIELDS):
         """
         准备分钟线cache数据
 
@@ -490,8 +621,7 @@ class MarketData(object):
     """
 
     def __init__(self, universe, daily_fields, minute_fields, daily_bars_loader, minute_bars_loader,
-                 daily_bars_check_field='closePrice', minute_bars_check_field='closePrice',
-                 cache_expand_minute_bars=False, asset_type=None):
+                 daily_bars_check_field='closePrice', minute_bars_check_field='closePrice', asset_type=None):
         self.universe = universe
         self.asset_type = asset_type
         self.factor_bars = dict()
@@ -510,7 +640,6 @@ class MarketData(object):
         self._minute_bars_loader = minute_bars_loader
         self._minute_bars_expanded = dict()
         self._minute_bars_loaded_days = list()
-        self._cache_expanded_minute_bars = cache_expand_minute_bars
         self._load_multi_freq_data = None
 
     @property
@@ -564,17 +693,44 @@ class MarketData(object):
                                               self._minute_bars_loader, self.minute_fields)
         self._minute_bars_loaded_days = [datetime.datetime.strptime(td, '%Y-%m-%d')
                                          for td in self.minute_bars[self._minute_bars_check_field].index]
-        if self._cache_expanded_minute_bars:
-            minute_bars = get_minute_bars()
-            trade_times = []
-            for td in self.minute_bars[self._minute_bars_check_field].index:
-                for minute_bar in minute_bars:
-                    trade_times.append("{} {}".format(td, minute_bar))
-            self._minute_bars_expanded = {}
-            for field, data in self.minute_bars.iteritems():
-                self._minute_bars_expanded[field] = _uncompress_minute_bars(
-                    data, data.columns, index_field='tradeTime', index_series=trade_times)
         return self.minute_bars
+
+    def load_current_trading_day_bars(self, current_trading_day, debug=False):
+        """
+        MarketData加载当日已聚合分钟线
+        Args:
+            current_trading_day(datetime.datetime): 交易日
+            debug(boolean): debug or not
+
+        Returns(set):
+            该MarketData的分钟BarTime
+        """
+        if not debug:
+            current_bars = _load_current_bars_by_now(current_trading_day, self.universe,
+                                                     fields=self.minute_fields,
+                                                     load_func=self._current_trading_day_bars_loader)
+        else:
+            # using default empty values
+            current_bars = dict()
+            for field in self.minute_fields:
+                default_array = np.array([], dtype='S') if field in ['barTime', 'tradeTime'] else np.array([])
+                values = {symbol: default_array for symbol in self.universe}
+                frame = pd.DataFrame.from_dict({current_trading_day.strftime('%Y-%m-%d'): values}, orient='index')
+                current_bars[field] = frame
+        for field in current_bars:
+            self.minute_bars[field] = self.minute_bars[field].append(current_bars[field])
+        self._minute_bars_loaded_days = [datetime.datetime.strptime(td, '%Y-%m-%d')
+                                         for td in self.minute_bars[self._minute_bars_check_field].index]
+        normalized_bar_time = set()
+        if self.asset_type == AssetType.FUTURES:
+            for bar_array in current_bars['barTime'].loc[current_trading_day.strftime('%Y-%m-%d')].tolist():
+                normalized_bar_time |= set(bar_array)
+        else:
+            universal_last_minute = max(current_bars['barTime'].loc[current_trading_day.strftime('%Y-%m-%d')].apply(
+                lambda x: x[-1] if x.size > 0 else ''))
+            if universal_last_minute:
+                raise NotImplementedError
+        return normalized_bar_time
 
     def adjust(self, raw_data_dict, symbols, time_bars, **kwargs):
         """
@@ -690,8 +846,7 @@ class FuturesMarketData(MarketData):
                                                 FUTURES_MINUTE_FIELDS,
                                                 self._daily_data_loader,
                                                 self._minute_data_loader,
-                                                asset_type=AssetType.FUTURES,
-                                                cache_expand_minute_bars=False)
+                                                asset_type=AssetType.FUTURES)
         self._prev_clearing_date_map = dict()
         self.continuous_fq_factors = {}
 
@@ -752,23 +907,6 @@ class FuturesMarketData(MarketData):
         minute_data_compressed = MarketData.rolling_load_minute_data(self, trading_days, max_cache_days)
         return minute_data_compressed
 
-    @staticmethod
-    def _daily_data_loader(universe, trading_days, fields):
-        daily_data = load_futures_daily_data(universe, trading_days, FUTURES_DAILY_FIELDS)
-        if 'turnoverVol' in fields:
-            daily_data['turnoverVol'] = daily_data.get('turnoverVol', daily_data.get('volume'))
-        return daily_data
-
-    @staticmethod
-    def _minute_data_loader(universe, trading_days, fields, freq='m'):
-        """
-        FuturesMarketData.minute_bars的具体加载函数
-        """
-        minute_data = load_futures_minute_data(universe, trading_days, FUTURES_MINUTE_FIELDS, freq=freq)
-        if 'turnoverVol' in fields:
-            minute_data['turnoverVol'] = minute_data['volume']
-        return minute_data
-
     def calc_continuous_fq_factors(self, continuous_futures=None, artificial_switch_info=None):
         """
         计算连续合约的价差平移因子，前复权因子
@@ -822,3 +960,39 @@ class FuturesMarketData(MarketData):
             return '{} {}'.format(prev_trading_day, minute_bar)
         else:
             return '{} {}'.format(clearing_date, minute_bar)
+
+    @staticmethod
+    def _daily_data_loader(universe, trading_days, fields):
+        daily_data = load_futures_daily_data(universe, trading_days, FUTURES_DAILY_FIELDS)
+        if 'turnoverVol' in fields:
+            daily_data['turnoverVol'] = daily_data.get('turnoverVol', daily_data.get('volume'))
+        return daily_data
+
+    @staticmethod
+    def _minute_data_loader(universe, trading_days, fields, freq='m'):
+        """
+        FuturesMarketData.minute_bars的具体加载函数
+        """
+        minute_data = load_futures_minute_data(universe, trading_days, FUTURES_MINUTE_FIELDS, freq=freq)
+        if 'turnoverVol' in fields:
+            minute_data['turnoverVol'] = minute_data['volume']
+        return minute_data
+
+    def _current_trading_day_bars_loader(self, current_trading_day, universe, fields):
+        """
+        当前交易日已聚合1分钟线bar线数据加载
+        Args:
+            current_trading_day:
+            universe(list of set):
+            fields(list)
+        Returns:
+
+        """
+        # customize start_time, end_time, fields
+        fields = fields or REAL_TIME_MINUTE_BAR_FIELDS
+        current_date = datetime.datetime.today()
+        if (current_trading_day > current_date) and (20 <= current_date.hour <= 21):
+            sta_data = dict()
+        else:
+            sta_data = MktFutBarRTIntraDayGet(securityID=universe, start_time=None, end_time=None)
+        return sta_data

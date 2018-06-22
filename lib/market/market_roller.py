@@ -12,9 +12,9 @@ from utils.datetime_utils import get_previous_trading_date
 from .. const import (
     BASE_FUTURES_PATTERN,
     CONTINUOUS_FUTURES_PATTERN,
-    TRADE_ESSENTIAL_FIELDS_DAILY,
-    TRADE_ESSENTIAL_FIELDS_MINUTE,
-    HISTORY_ESSENTIAL_FIELDS_MINUTE,
+    TRADE_ESSENTIAL_DAILY_BAR_FIELDS,
+    TRADE_ESSENTIAL_MINUTE_BAR_FIELDS,
+    HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS,
     MAX_CACHE_DAILY_PERIODS,
     ADJ_FACTOR,
 )
@@ -226,7 +226,7 @@ class MarketRoller(object):
             end_date = self.trading_days[offset_index]
             time_range = self.daily_bar_loading_rate + extend_loading_days
             self.tas_daily_cache = self.market_service.slice(symbols=self.universe,
-                                                             fields=TRADE_ESSENTIAL_FIELDS_DAILY,
+                                                             fields=TRADE_ESSENTIAL_DAILY_BAR_FIELDS,
                                                              time_range=time_range, end_date=end_date,
                                                              freq='d', style='tas')
             sorted_dates = sorted(self.tas_daily_cache)
@@ -304,7 +304,7 @@ class MarketRoller(object):
             time_range = self.minute_bar_loading_rate + extend_loading_days
             cache_items = self.market_service.prepare_minute_cache(self.universe, end_date,
                                                                    time_range=time_range,
-                                                                   fields=HISTORY_ESSENTIAL_FIELDS_MINUTE)
+                                                                   fields=HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS)
 
             sat_data = cache_items['sat']
             self.sat_minute_cache = \
@@ -313,7 +313,7 @@ class MarketRoller(object):
             for date, data in tas_data.iteritems():
                 self.tas_minute_cache[datetime.strptime(date, '%Y-%m-%d')] = data
         self.tas_minute_expanded_cache = {
-            current_date: _tas_data_tick_expand(self.tas_minute_cache[current_date], TRADE_ESSENTIAL_FIELDS_MINUTE)
+            current_date: _tas_data_tick_expand(self.tas_minute_cache[current_date], TRADE_ESSENTIAL_MINUTE_BAR_FIELDS)
         }
         return self.tas_minute_expanded_cache
 
@@ -459,7 +459,7 @@ class MarketRoller(object):
             market_data = cached_data.get(field, dict()).get(symbol, np.nan)
         elif freq == 'm':
             cached_data = self.tas_minute_expanded_cache[date][minute]
-            essential_fields = TRADE_ESSENTIAL_FIELDS_MINUTE
+            essential_fields = TRADE_ESSENTIAL_MINUTE_BAR_FIELDS
             market_data = cached_data.get(symbol, [0]*len(essential_fields))[essential_fields.index(field)]
         else:
             raise ValueError('Exception in "FuturesAccount.get_transact_data": '
@@ -523,7 +523,7 @@ class MarketRoller(object):
                 # 检查之前交易日是否完备， 否则加载
                 if not (freq_cache_dates and set(previous_dates) <= set(freq_cache_dates)):
                     previous_at_data = self.market_service.slice(
-                        symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
+                        symbols='all', fields=HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS,
                         freq=freq, style='sat', prepare_dates=previous_dates,
                         end_date=previous_dates[-1], time_range=len(previous_dates),
                         rtype='array', s_adj='pre_adj')
@@ -538,7 +538,7 @@ class MarketRoller(object):
                     sat_array_data = self.multi_freq_cache[freq]
                 else:
                     multi_freq_data = self.market_service.slice(
-                        symbols='all', fields=HISTORY_ESSENTIAL_FIELDS_MINUTE,
+                        symbols='all', fields=HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS,
                         freq=freq, style='sat', prepare_dates=prepare_dates,
                         end_date=prepare_dates[-1], time_range=len(prepare_dates),
                         rtype='array', s_adj='pre_adj')

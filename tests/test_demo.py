@@ -8,7 +8,7 @@ from lib.core.clock import clock
 
 DEFAULT_STRATEGY = """
 universe = ['RBM0', 'RB1810']  # 希望订阅的货币对行情数据
-freq = 'tick'
+freq = 'm'
 refresh_rate = 1                           # 执行handle_data的时间间隔
 
 accounts = {
