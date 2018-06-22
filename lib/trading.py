@@ -33,9 +33,9 @@ def trading(strategy_code, config=None, connect_json=None, debug=False, **kwargs
         debug(boolean): whether to debug
         **kwargs: key-value parameters
     """
-    with open(connect_json, 'r+') as connect_file:
-        connect_json = json.load(connect_file)
-    print connect_json
+    # with open(connect_json, 'r+') as connect_file:
+    #     connect_json = json.load(connect_file)
+    # print connect_json
     config = config or dict()
     strategy, local_variables = strategy_from_code(strategy_code)
     sim_params = parse_sim_params(config, local_variables)

@@ -2,34 +2,10 @@
 # **********************************************************************************#
 #     File: trading base.
 # **********************************************************************************#
-import ast
-import codegen
 from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
 from . trade import Commission, Slippage
 from . const import DEFAULT_KEYWORDS
-
-
-def get_code_parameters(strategy_code):
-    """
-    Get code parameters
-
-    Args:
-        strategy_code(string): strategy code
-    """
-    tree = ast.parse(strategy_code)
-    root_node = tree.body
-    keep_nodes = []
-    for node in root_node:
-        try:
-            key = node.targets[0].id
-            if key in ('accounts', 'refresh_rate', 'freq', 'capital_base', 'position_base', 'cost_base',
-                       'initialize', 'handle_data', 'commission', 'slippage', 'margin_rate'):
-                keep_nodes.append(node)
-        finally:
-            pass
-    tree.body = keep_nodes
-    return codegen.to_source(tree)
 
 
 def parse_prior_params(bt_config, code_config, key, default, prior='pre'):
@@ -101,7 +77,7 @@ def parse_sim_params(config, local_variables):
     return sim_params
 
 
-def strategy_from_code(code, need_strategy_parse=True, log_obj=None):
+def strategy_from_code(code, log_obj=None):
     """
     执行策略代码文本，提取其中策略信息（sim_params, strategy, 新增用户自定义变量和引用包）
     Args:
@@ -116,13 +92,8 @@ def strategy_from_code(code, need_strategy_parse=True, log_obj=None):
     from trade import Commission, Slippage, OrderState
     assert (Commission, Slippage, OrderState, AccountConfig)
     log = log_obj
-    if not need_strategy_parse:
-        code = get_code_parameters(code)
     exec code in locals()
-    if need_strategy_parse:
-        strategy = TradingStrategy(initialize=locals().get('initialize'), handle_data=locals().get('handle_data'))
-    else:
-        strategy = None
+    strategy = TradingStrategy(initialize=locals().get('initialize'), handle_data=locals().get('handle_data'))
     return strategy, locals()
 
 
@@ -138,7 +109,6 @@ def orders_to_response(trading_orders, sub_portfolio_info, registered_accounts=N
 
 
 __all__ = [
-    'get_code_parameters',
     'parse_prior_params',
     'parse_sim_params',
     'strategy_from_code',

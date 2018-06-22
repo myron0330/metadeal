@@ -20,11 +20,8 @@ ctp.read(ctp_path)
 ################################################################
 # logger
 ################################################################
-try:
-    logging.config.fileConfig(log_path)
-    logger = logging.getLogger("main")
-except IOError, _:
-    logger = None
+logging.config.fileConfig(log_path)
+logger = logging.getLogger("main")
 
 
 ################################################################
