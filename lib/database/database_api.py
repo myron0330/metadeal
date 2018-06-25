@@ -12,6 +12,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from api_client import Client
+from lib.const import (
+    BASE_FUTURES_PATTERN,
+    CONTINUOUS_FUTURES_PATTERN
+)
 
 
 os.environ['privilege'] = json.dumps({'basic': 1})
@@ -29,7 +33,7 @@ client = Client()
 client.init('602bada78f4eb803470a5b8754eb956da631fc072e116deb39b7c85b94d070dc')
 
 
-def _normalize_date(date):
+def normalize_date(date):
     """
     将日期标准化为datetime.datetime格式
 
@@ -48,6 +52,13 @@ def _normalize_date(date):
     return datetime(date.year, date.month, date.day)
 
 
+def get_end_date():
+    """
+    End date.
+    """
+    return normalize_date(datetime.today())
+
+
 def get_trading_days(start, end):
     """
     Get trading days.
@@ -59,14 +70,14 @@ def get_trading_days(start, end):
         list of datetime: trading days list
 
     """
-    start = _normalize_date(start).strftime('%Y%m%d')
-    end = _normalize_date(end).strftime('%Y%m%d')
+    start = normalize_date(start).strftime('%Y%m%d')
+    end = normalize_date(end).strftime('%Y%m%d')
     url = '/api/master/getTradeCal.json?field=&exchangeCD=XSHG,XSHE&beginDate={}&endDate={}'.format(start, end)
     code, data = client.getData(url)
     if code != 200:
         raise Exception
     data = json.loads(data)['data']
-    return map(lambda x: _normalize_date(x['calendarDate']), filter(lambda x: x['isOpen'] == 1, data))
+    return map(lambda x: normalize_date(x['calendarDate']), filter(lambda x: x['isOpen'] == 1, data))
 
 
 def get_direct_trading_day(date, step, forward):
@@ -82,7 +93,7 @@ def get_direct_trading_day(date, step, forward):
     """
     if step > 50:
         raise Exception('step can only be less than 20.')
-    date = _normalize_date(date)
+    date = normalize_date(date)
     start_date = date - timedelta(100)
     end_date = date + timedelta(100)
     target_trading_days = get_trading_days(start=start_date,
@@ -90,6 +101,158 @@ def get_direct_trading_day(date, step, forward):
     date_index = bisect.bisect_left(target_trading_days, date)
     target_index = date_index + (1 if forward else -1) * step
     return target_trading_days[target_index]
+
+
+def get_data_cube(symbols, field, start, end=None, freq='1d', style='sat', adj=None, **kwargs):
+    """
+    Get data cube based on DataAPI.
+
+    Args:
+        symbols(list or string): ordinary and artificial future contracts.
+        field(list or string): attribute fields.
+        start(datetime.datetime or string): start date
+        end(datetime.datetime or string): end date
+        freq(string): frequency
+        style(string): data style, ast/sat/tas.
+                        a: attribute, s: symbol, t: time
+        adj(string): 'pre' represent pre_adj
+        **kwargs: kwargs arguments
+
+    Returns:
+        pandas.Panel: pandas panel.
+    """
+    market_daily_fields_set = set(FUTURES_DAILY_FIELDS)
+    market_minute_fields_set = set(FUTURES_MINUTE_FIELDS)
+
+    def _format_array_of_string(param, param_name):
+        if isinstance(param, basestring):
+            if ',' in param:
+                param = param.split(',')
+            elif ';' in param:
+                param = param.split(';')
+            else:
+                param = [param]
+        elif isinstance(param, list):
+            for item in param:
+                if not isinstance(item, basestring):
+                    print ("Parameters %s only support string or list of string inputs." % param_name)
+                    return list()
+        return [item.strip() for item in param if isinstance(item, basestring)]
+
+    symbols = _format_array_of_string(symbols, "symbol")
+    if not symbols:
+        return
+
+    field = _format_array_of_string(field, "field")
+    if not field:
+        return
+
+    if isinstance(freq, basestring):
+        if freq not in ['1d', '1m', 'd', 'm', '5m', '15m', '30m', '60m']:
+            print ("Only support '1d','1m','5m', '15m', '30m', '60m'")
+            return
+    else:
+        print ("Param 'freq' only support string inputs.")
+
+    if adj is not None and adj != 'pre':
+        print (u"Only support 'pre' input of 'adj' parameter for now")
+
+    start_date = normalize_date(start)
+    if start_date is None:
+        return
+
+    base_futures = [x for x in symbols if BASE_FUTURES_PATTERN.match(x)]
+    continuous_futures = [x for x in symbols if CONTINUOUS_FUTURES_PATTERN.match(x)]
+
+    futures = list(set(base_futures) | set(continuous_futures))
+
+    if freq in ['1m', '5m', '15m', '30m', '60m', 'm']:
+        start_date = max(start_date, datetime(2010, 1, 1))
+
+    mkt_daily_fields = set(field) & market_daily_fields_set
+    mkt_minute_fields = (set(field) & market_minute_fields_set)
+    mkt_fields = mkt_daily_fields | mkt_minute_fields
+
+    fs_fields = list(set(field) & set())
+    rest = set(field) - set(mkt_fields) - set(fs_fields)
+    if rest:
+        print ("Invalid fields: %s" % list(rest))
+
+    end_date = normalize_date(end) if end is not None else get_end_date()
+    if end_date is None:
+        return
+    if end_date < start_date:
+        print ("start date is earlier than end date.")
+        return
+    trading_days = get_trading_days(start_date, end_date)
+    if len(trading_days) == 0:
+        print ("Date period among start:%s, end:%s contains no trading days." % (start, end))
+        return
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+
+    filtered_futures = list()
+    if futures:
+        futures_info_frame = load_futures_base_info(symbols)
+        futures_info_frame.index = futures_info_frame.symbol
+        futures_info_dict = futures_info_frame[['listDate', 'lastTradeDate']].T.to_dict()
+        for future in futures:
+            if future in futures_info_dict:
+                list_date, last_trade_date = \
+                    futures_info_dict[future]['listDate'], futures_info_dict[future]['lastTradeDate']
+                if start_date_str < last_trade_date and end_date_str > list_date:
+                    filtered_futures.append(future)
+            else:
+                filtered_futures.append(future)
+        if len(set(futures) - set(filtered_futures)) > 0:
+            print ("%s are unreachable in the response because of the list periods." %
+                   list(set(futures) - set(filtered_futures)))
+
+    invalid_symbol = list(set(symbols) - set(futures))
+    if invalid_symbol:
+        print ("can not recognize symbol parameters %s， please check." % invalid_symbol)
+
+    symbols = list(set(filtered_futures))
+    if len(symbols) == 0:
+        return pd.Panel()
+
+    if freq in ['d', '1d']:
+        market_service = MarketService.create_with_service(symbols,
+                                                           mkt_daily_fields,
+                                                           mkt_minute_fields,
+                                                           factors,
+                                                           fs_fields,
+                                                           adj=True if adj == 'pre' else False,
+                                                           **kwargs)
+        market_service.batch_load_daily_data(trading_days)
+        data = market_service.slice(symbols=symbols, fields=field,
+                                    end_date=end_date, freq='d', start_date=start_date,
+                                    style=style, rtype='frame', time_range=None)
+        return pd.Panel(data).replace([None], np.nan)
+    if freq in ['1m', '5m', '15m', '30m', '60m', 'm']:
+        if 'IFZ0' in symbols:
+            print (u"IFZ0暂不支持分钟线数据。")
+            symbols.remove('IFZ0')
+
+        mkt_daily_fields = list(set(mkt_daily_fields) - set(mkt_minute_fields))
+
+        if mkt_daily_fields:
+            print (u"传入字段：%s为日线字段，暂时没有分钟相关的数据。" % mkt_daily_fields)
+        market_service = MarketService.create_with_service(symbols,
+                                                           [],
+                                                           mkt_minute_fields,
+                                                           factors,
+                                                           fs_fields,
+                                                           adj=True if adj == 'pre' else False,
+                                                           **kwargs)
+        market_service.batch_load_daily_data(trading_days)
+        market_service.rolling_load_minute_data(trading_days, None, freq)
+        tick_roller = TickRoller(market_service)
+        data_min = tick_roller.slice(prepare_dates=trading_days, end_time=MAX_END_DATE,
+                                     time_range=MAX_MINUTE_LENGTH,
+                                     fields=field, symbols=symbols, style=style,
+                                     rtype='frame')
+        return pd.Panel(data_min).replace([None], np.nan)
 
 
 def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
@@ -188,18 +351,39 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
     trading_days_length = len(trading_days)
     universe_length = len(universe)
 
-    batch_size = max(1, BATCH_MINUTE_DATA_SIZE // trading_days_length)
+    batch_size = 1
     batches = [universe[i:min(i+batch_size, universe_length)] for i in range(0, universe_length, batch_size)]
 
     def _loader(index, batch):
         import os
         import json
+
         data_cube_fields = [
             'openPrice', 'highPrice', 'lowPrice',
             'closePrice', 'turnoverVol', 'turnoverValue',
             'openInterest', 'tradeDate'
         ]
+        if not batch:
+            return index, dict()
         os.environ['privilege'] = json.dumps({'basic': 1})
+        url = '/api/market/getFutureBarHistDateRange.json?' \
+              'instrumentID={}&startDate={}&endDate={}&unit={}'.format(batch[0],
+                                                                       trading_days[0],
+                                                                       trading_days[-1],
+                                                                       1)
+        code, resp_data = client.getData(url)
+        if code != 200:
+            raise Exception
+        frame = pd.DataFrame(json.loads(resp_data)['data'][0]['barBodys'])
+        frame.rename(columns={
+            'dataDate': 'tradeDate',
+            'totalVolume': 'turnoverVol',
+            'totalValue': 'turnoverValue',
+            'clearingDay': 'clearingDate'},
+            inplace=True)
+        frame['tradeTime'] = frame.tradeDate + ' ' + frame.barTime
+        frame.index = frame.tradeTime
+
         data = DataAPI.get_data_cube(symbol=batch, field=data_cube_fields,
                                      start=trading_days[0],
                                      end=trading_days[-1],
@@ -323,8 +507,8 @@ def load_futures_main_contract(contract_objects=None, trading_days=None, start=N
         start(string or datetime.datetime): start date
         end(string or datetime.datetime): end date
     """
-    start = _normalize_date(start or trading_days[0]).strftime('%Y%m%d')
-    end = _normalize_date(end or trading_days[-1]).strftime('%Y%m%d')
+    start = normalize_date(start or trading_days[0]).strftime('%Y%m%d')
+    end = normalize_date(end or trading_days[-1]).strftime('%Y%m%d')
     url = '/api/market/getMktMFutd.json?mainCon=1&startDate={}&endDate={}'.format(start, end)
     code, data = client.getData(url)
     if code != 200:
@@ -348,6 +532,16 @@ if __name__ == '__main__':
                                          get_trading_days('20180301', '20180401'),
                                          attributes=['closePrice', 'turnoverValue'])
     print daily_data
+    base_info = load_futures_base_info(['RB1810', 'RM809'])
+    print base_info
+    data_cube_fields = [
+        'openPrice', 'highPrice', 'lowPrice',
+        'closePrice', 'turnoverVol', 'turnoverValue',
+        'openInterest', 'tradeDate'
+    ]
+    data_cube_data = get_data_cube(symbols=['RB1810', 'RM809'], field=data_cube_fields,
+                                   start='2018-06-14', end='2018-06-16', freq='m')
+    print data_cube_data
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
     # test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))

@@ -4,31 +4,13 @@
 #   Author: Myron
 # **********************************************************************************#
 import time
-import pandas as pd
 from datetime import datetime, timedelta
 from lib.database.database_api import (
     get_trading_days,
-    get_direct_trading_day
+    get_direct_trading_day,
+    normalize_date,
+    get_end_date
 )
-
-
-def normalize_date(date):
-    """
-    将日期标准化为datetime.datetime格式
-
-    Args:
-        date (datetime.datetime or str): datetime
-
-    Returns:
-        datetime.datetime: 标准化之后的日期
-
-    Examples:
-        >> normalize_date(datetime(2015, 1, 1))
-        >> normalize_date('2015-01-01')
-        >> normalize_date('20150101')
-    """
-    date = pd.Timestamp(date)
-    return datetime(date.year, date.month, date.day)
 
 
 def get_current_date():
@@ -137,8 +119,20 @@ def timestamp_to_date(timestamp):
     return time.strftime('%Y%m%d', time.localtime(timestamp / 1000))
 
 
-def get_end_date():
-    """
-    End date.
-    """
-    return normalize_date(datetime.today())
+__all__ = [
+    'get_end_date',
+    'get_trading_days',
+    'get_previous_trading_date',
+    'get_next_date',
+    'get_current_date',
+    'get_direct_trading_day',
+    'get_next_trading_date',
+    'get_current_minute',
+    'get_current_time_stamp',
+    'get_latest_trading_date',
+    'get_previous_date',
+    'get_previous_minute',
+    'get_upcoming_trading_date',
+    'date_to_timestamp',
+    'timestamp_to_date',
+]
