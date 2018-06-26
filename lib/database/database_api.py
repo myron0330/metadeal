@@ -10,7 +10,7 @@ import DataAPI
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 from api_client import Client
 from lib.const import (
     BASE_FUTURES_PATTERN,
@@ -72,7 +72,7 @@ def get_trading_days(start, end):
     """
     start = normalize_date(start).strftime('%Y%m%d')
     end = normalize_date(end).strftime('%Y%m%d')
-    url = '/api/master/getTradeCal.json?field=&exchangeCD=XSHG,XSHE&beginDate={}&endDate={}'.format(start, end)
+    url = '/api/master/getTradeCal.json?field=&exchangeCD=XSHG&beginDate={}&endDate={}'.format(start, end)
     code, data = client.getData(url)
     if code != 200:
         raise Exception
@@ -358,11 +358,11 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
         import os
         import json
 
-        data_cube_fields = [
-            'openPrice', 'highPrice', 'lowPrice',
-            'closePrice', 'turnoverVol', 'turnoverValue',
-            'openInterest', 'tradeDate'
-        ]
+        # data_cube_fields = [
+        #     'openPrice', 'highPrice', 'lowPrice',
+        #     'closePrice', 'turnoverVol', 'turnoverValue',
+        #     'openInterest', 'tradeDate'
+        # ]
         if not batch:
             return index, dict()
         os.environ['privilege'] = json.dumps({'basic': 1})
@@ -383,38 +383,30 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
             inplace=True)
         frame['tradeTime'] = frame.tradeDate + ' ' + frame.barTime
         frame.index = frame.tradeTime
-
-        data = DataAPI.get_data_cube(symbol=batch, field=data_cube_fields,
-                                     start=trading_days[0],
-                                     end=trading_days[-1],
-                                     freq='m')
+        raw_data = pd.Panel({batch[0]: frame}).replace([None], np.nan)
         result = dict()
 
         for symbol in batch:
-            symbol_data = data[symbol]
+            symbol_data = raw_data[symbol]
             symbol_data.dropna(inplace=True)
-            trade_dates = symbol_data['tradeDate'].tolist()
-            sorted_trade_dates = sorted(set(trade_dates), key=trade_dates.index)
-            next_date_mapping = dict(zip(sorted_trade_dates[:-1], sorted_trade_dates[1:]))
+            # trade_dates = symbol_data['tradeDate'].tolist()
+            # sorted_trade_dates = sorted(set(trade_dates), key=trade_dates.index)
+            # next_date_mapping = dict(zip(sorted_trade_dates[:-1], sorted_trade_dates[1:]))
 
-            def _transfer_clearing_date(trade_time):
-                """
-                Transfer clearing date based on  trade time.
-                """
-                date, minute = trade_time.split(' ')
-                if minute >= '21:00':
-                    return next_date_mapping[date]
-                return date
-
-            symbol_data['tradeTime'] = symbol_data.index
-            symbol_data['clearingDate'] = symbol_data.tradeTime.apply(_transfer_clearing_date)
-            symbol_data['barTime'] = map(lambda x: x.split(' ')[-1], symbol_data.index)
+            # def _transfer_clearing_date(trade_time):
+            #     """
+            #     Transfer clearing date based on  trade time.
+            #     """
+            #     date, minute = trade_time.split(' ')
+            #     if minute >= '21:00':
+            #         return next_date_mapping[date]
+            #     return date
             symbol_data['volume'] = symbol_data['turnoverVol']
             symbol_data['symbol'] = symbol
             frame_list = [symbol_data[symbol_data.clearingDate == _] for _ in set(symbol_data['clearingDate'])]
             symbol_result = dict()
             keys = symbol_data.keys()
-            for index, key in enumerate(keys):
+            for key in keys:
                 symbol_result[key] = np.array([_[key].tolist() for _ in frame_list]).tolist()
                 if key in ['clearingDate', 'symbol']:
                     result_length = len(symbol_result[key])
@@ -534,16 +526,16 @@ if __name__ == '__main__':
     print daily_data
     base_info = load_futures_base_info(['RB1810', 'RM809'])
     print base_info
-    data_cube_fields = [
-        'openPrice', 'highPrice', 'lowPrice',
-        'closePrice', 'turnoverVol', 'turnoverValue',
-        'openInterest', 'tradeDate'
-    ]
-    data_cube_data = get_data_cube(symbols=['RB1810', 'RM809'], field=data_cube_fields,
-                                   start='2018-06-14', end='2018-06-16', freq='m')
-    print data_cube_data
+    # data_cube_fields = [
+    #     'openPrice', 'highPrice', 'lowPrice',
+    #     'closePrice', 'turnoverVol', 'turnoverValue',
+    #     'openInterest', 'tradeDate'
+    # ]
+    # data_cube_data = get_data_cube(symbols=['RB1810', 'RM809'], field=data_cube_fields,
+    #                                start='2018-06-14', end='2018-06-16', freq='m')
+    # print data_cube_data
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
-    # test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
     # test_data = load_futures_rt_minute_data(['RB1810'])
-    # print test_data
+    print test_data
