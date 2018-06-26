@@ -215,44 +215,7 @@ def get_data_cube(symbols, field, start, end=None, freq='1d', style='sat', adj=N
     symbols = list(set(filtered_futures))
     if len(symbols) == 0:
         return pd.Panel()
-
-    if freq in ['d', '1d']:
-        market_service = MarketService.create_with_service(symbols,
-                                                           mkt_daily_fields,
-                                                           mkt_minute_fields,
-                                                           factors,
-                                                           fs_fields,
-                                                           adj=True if adj == 'pre' else False,
-                                                           **kwargs)
-        market_service.batch_load_daily_data(trading_days)
-        data = market_service.slice(symbols=symbols, fields=field,
-                                    end_date=end_date, freq='d', start_date=start_date,
-                                    style=style, rtype='frame', time_range=None)
-        return pd.Panel(data).replace([None], np.nan)
-    if freq in ['1m', '5m', '15m', '30m', '60m', 'm']:
-        if 'IFZ0' in symbols:
-            print (u"IFZ0暂不支持分钟线数据。")
-            symbols.remove('IFZ0')
-
-        mkt_daily_fields = list(set(mkt_daily_fields) - set(mkt_minute_fields))
-
-        if mkt_daily_fields:
-            print (u"传入字段：%s为日线字段，暂时没有分钟相关的数据。" % mkt_daily_fields)
-        market_service = MarketService.create_with_service(symbols,
-                                                           [],
-                                                           mkt_minute_fields,
-                                                           factors,
-                                                           fs_fields,
-                                                           adj=True if adj == 'pre' else False,
-                                                           **kwargs)
-        market_service.batch_load_daily_data(trading_days)
-        market_service.rolling_load_minute_data(trading_days, None, freq)
-        tick_roller = TickRoller(market_service)
-        data_min = tick_roller.slice(prepare_dates=trading_days, end_time=MAX_END_DATE,
-                                     time_range=MAX_MINUTE_LENGTH,
-                                     fields=field, symbols=symbols, style=style,
-                                     rtype='frame')
-        return pd.Panel(data_min).replace([None], np.nan)
+    raise NotImplementedError
 
 
 def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
