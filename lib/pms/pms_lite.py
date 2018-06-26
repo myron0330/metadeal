@@ -203,3 +203,12 @@ class PMSLite(object):
                                                         force_evaluate_date=force_evaluate_date)
             evaluated_position_info.update(evaluated_info)
         return evaluated_position_info
+
+    def get_portfolio_info(self, portfolio_id):
+        """
+        Get portfolio info.
+        """
+        evaluated_position_info = self.evaluated_positions_by_(portfolio_ids=[portfolio_id])
+        if portfolio_id not in evaluated_position_info:
+            return dict()
+        position_info = evaluated_position_info[portfolio_id]
