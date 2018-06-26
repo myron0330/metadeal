@@ -18,6 +18,7 @@ from . trading_base import (
     parse_sim_params
 )
 from . trading_agent import TradingAgent
+from . pms.pms_lite import PMSLite
 from . configs import ctp_config
 
 
@@ -56,6 +57,7 @@ def trading(strategy_code, config=None, debug=False, **kwargs):
     ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          ctp_gateway=ctp_gateway)
+    pms_lite = PMSLite()
     account_manager = AccountManager.from_config(clock, sim_params, data_portal,
                                                  event_engine=event_engine,
                                                  pms_gateway=pms_gateway)

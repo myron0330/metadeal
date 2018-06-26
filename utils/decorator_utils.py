@@ -8,6 +8,7 @@ from psutil import Process
 from threading import Thread, Lock
 from datetime import datetime
 from collections import OrderedDict
+from functools import wraps
 
 
 def mutex_lock(func, lock=Lock()):
@@ -32,6 +33,7 @@ def singleton(cls):
     """
     _instance = dict()
 
+    @wraps(cls)
     def decorator(*args, **kwargs):
         if cls not in _instance:
             _instance[cls] = cls(*args, **kwargs)

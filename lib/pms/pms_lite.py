@@ -4,6 +4,7 @@
 # **********************************************************************************#
 from utils.dict_utils import DefaultDict
 from utils.error_utils import Errors
+from utils.decorator_utils import singleton
 from . base import *
 from . pms_agent.futures_pms_agent import FuturesPMSAgent
 from .. configs import logger
@@ -22,6 +23,7 @@ class PMSLiteMcs(type):
         return type.__new__(mcs, name, bases, attributes)
 
 
+@singleton
 class PMSLite(object):
     """
     PMSLite: pms lite agent for managing all pms_lites in PMS, add tail_fix '_pms_lite' if expand other pms lite.
@@ -29,14 +31,6 @@ class PMSLite(object):
     __metaclass__ = PMSLiteMcs
 
     futures_pms_agent = FuturesPMSAgent()
-
-    def __new__(cls, *args, **kwargs):
-        """
-        Single instance pms broker
-        """
-        if not hasattr(cls, '_instance'):
-            cls._instance = super(PMSLite, cls).__new__(cls)
-        return cls._instance
 
     def prepare(self, securities_type=SecuritiesType.ALL):
         """
@@ -199,7 +193,6 @@ class PMSLite(object):
             else:
                 raise Errors.INVALID_SECURITIES_TYPE
             evaluated_info = current_pms_agent.evaluate(position_info=info,
-                                                        benchmark_dict=benchmark_info_dict[securities_type],
                                                         force_evaluate_date=force_evaluate_date)
             evaluated_position_info.update(evaluated_info)
         return evaluated_position_info
@@ -207,8 +200,17 @@ class PMSLite(object):
     def get_portfolio_info(self, portfolio_id):
         """
         Get portfolio info.
+
+        Args:
+            portfolio_id(string): portfolio id
         """
         evaluated_position_info = self.evaluated_positions_by_(portfolio_ids=[portfolio_id])
         if portfolio_id not in evaluated_position_info:
             return dict()
-        position_info = evaluated_position_info[portfolio_id]
+        position_schema = evaluated_position_info[portfolio_id]
+        return {
+            'cash': position_schema.cash,
+            'positions': position_schema.positions,
+            'pre_portfolio_value': position_schema.pre_portfolio_value,
+            'portfolio_value': position_schema.portfolio_value
+        }

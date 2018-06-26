@@ -3,6 +3,7 @@
 #     File:
 # **********************************************************************************#
 # todo. ADD market quote.
+from utils.decorator_utils import singleton
 
 
 class MarketType(object):
@@ -17,6 +18,7 @@ market_type_map = {
 }
 
 
+@singleton
 class MarketQuote(object):
 
     @classmethod

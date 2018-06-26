@@ -85,7 +85,7 @@ class Clock(object):
         """
         Clearing date
         """
-        if self.current_minute <= '16:00' and self.is_trading_day:
+        if self.current_minute <= '20:00' and self.is_trading_day:
             return self.current_date
         return self.upcoming_trading_date
 

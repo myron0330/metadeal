@@ -18,10 +18,7 @@ from .. const import (
 )
 from .. trade.order import Order
 from .. trade.trade import MetaTrade
-from .. trade.position import (
-    MetaPosition,
-    LongShortPosition
-)
+from .. trade.position import choose_position
 
 
 def _encoding_base_info(base_info):
@@ -190,7 +187,7 @@ class PositionSchema(ValueObject):
         portfolio_id = item['portfolio_id']
         date = item['date']
         cash = item['cash']
-        position_object = LongShortPosition if securities_type == SecuritiesType.futures else MetaPosition
+        position_object = choose_position(securities_type)
         positions = {position['symbol']: position_object.from_query(position) for position in item['positions']}
         pre_portfolio_value = item['pre_portfolio_value']
         portfolio_value = item['portfolio_value']

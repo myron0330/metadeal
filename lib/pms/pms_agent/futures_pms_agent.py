@@ -11,10 +11,9 @@ from utils.datetime_utils import (
     get_next_trading_date,
     get_latest_trading_date
 )
+from utils.decorator_utils import singleton
 from utils.dict_utils import *
 from .. base import *
-from .. pms_broker import PMSBroker
-from .. broker.futures_broker import transact_futures_bar
 from ... configs import logger
 from ... core.clock import clock
 from ... core.schema import *
@@ -35,11 +34,11 @@ from ... data.asset_service import AssetService
 asset_service = AssetService()
 
 
+@singleton
 class FuturesPMSAgent(object):
     """
-    Futures pms pms_agent
+    Futures pms agent.
     """
-    pms_broker = PMSBroker()
     portfolio_info = DefaultDict(PortfolioSchema(portfolio_type='parent_portfolio'))
     sub_portfolio_info = DefaultDict(PortfolioSchema(portfolio_type='sub_portfolio'))
     position_info = DefaultDict(PositionSchema(date=clock.current_date.strftime('%Y%m%d')))
@@ -47,19 +46,6 @@ class FuturesPMSAgent(object):
     trade_info = DefaultDict(TradeSchema(date=clock.current_date.strftime('%Y%m%d')))
     _current_exchangeable = []
     current_exchangeable_flag = None
-
-    def __new__(cls, **kwargs):
-        """
-        Args:
-            portfolio_info(dict): all portfolios | {portfolio_id: PortfolioSchema}
-            sub_portfolio_info(dict): all sub portfolios | {sub_portfolio_id: PortfolioSchema}
-            position_info(dict): all pms equities | {sub_portfolio_id: PositionSchema}
-            order_info(dict): all pms orders | {sub_portfolio_id: OrderSchema}
-            trade_info(dict): all pms trades | {sub_portfolio_id: TradeSchema}
-        """
-        if not hasattr(cls, '_instance'):
-            cls._instance = super(FuturesPMSAgent, cls).__new__(cls)
-        return cls._instance
 
     @property
     def current_exchangeable(self):
@@ -88,9 +74,9 @@ class FuturesPMSAgent(object):
         date = force_date or clock.clearing_date
         message = 'Begin pre trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [PRE TRADING DAY]'+message)
-        futures_portfolio_ids = query_portfolio_ids_by_(SecuritiesType.FUTURES)
+        futures_portfolio_ids = query_portfolio_ids_by_(SecuritiesType.futures)
         delete_redis_([SchemaType.position, SchemaType.order], futures_portfolio_ids)
-        position_info = query_by_ids_('mongodb', SchemaType.futures_position, date, futures_portfolio_ids)
+        position_info = query_by_ids_('mongodb', SchemaType.position, date, futures_portfolio_ids)
         invalid_portfolios = [key for key in position_info if key not in futures_portfolio_ids]
         if invalid_portfolios:
             invalid_msg = 'Position not loaded'+', '.join(invalid_portfolios)
@@ -98,7 +84,6 @@ class FuturesPMSAgent(object):
         dump_to_('redis', SchemaType.position, position_info) if position_info else None
         order_info = query_by_ids_('mongodb', SchemaType.order, date, futures_portfolio_ids)
         dump_to_('redis', SchemaType.order, order_info) if order_info else None
-        # self.current_exchangeable = get_current_exchangeable_futures()
         self.clear()
         end_msg = 'End pre trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [PRE TRADING DAY]'+end_msg)
@@ -145,35 +130,30 @@ class FuturesPMSAgent(object):
         msg = 'End post trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [POST TRADING DAY]'+msg)
 
-    def evaluate(self, position_info=None, benchmark_dict=None, force_evaluate_date=None):
+    def evaluate(self, position_info=None, force_evaluate_date=None):
         """
         计算持仓市值、浮动盈亏以及当日用户权益
 
         Args:
             position_info(dict): 用户持仓数据
             force_evaluate_date(datetime.datetime): 是否强制对根据该日期进行估值
-            benchmark_dict(dict): 组合所对应的benchmark
 
         Returns:
             position_info(dict): 更新之后的持仓数据
         """
         if not position_info:
             return position_info
-        benchmark_change_percent = None
         if force_evaluate_date:
             latest_trading_date = get_latest_trading_date(force_evaluate_date)
             last_price_info = load_equity_market_data(latest_trading_date)
-            benchmark_change_percent = load_change_percent_for_benchmark(latest_trading_date)
         else:
-            market_quote = MarketQuote.get_instance()
+            market_quote = MarketQuote()
             last_price_info = market_quote.get_price_info(security_type=SecuritiesType.futures)
 
-        # logger.info('*'*30)
         for portfolio_id, position_schema in position_info.iteritems():
             total_position_margin = 0
             for symbol, position in position_schema.positions.iteritems():
                 price_info = last_price_info.get(symbol)
-                # logger.info("Price message: {}, {}".format(symbol, price_info))
                 if position and price_info:
                     margin_rate, commission_obj, multiplier, min_change_price, _ = \
                         asset_service.get_future_trade_params(symbol)
@@ -182,29 +162,11 @@ class FuturesPMSAgent(object):
                                                                   margin_rate=margin_rate)
                     position_schema.positions[symbol] = position
                     position_schema.portfolio_value += float_pnl_added
-                # if price info is not available, the total value would add the latest evaluated value.
                 total_position_margin = total_position_margin + position.long_margin + position.short_margin
 
-            # logger.info("total_values: {}".format(total_values))
-            # logger.info("cash: {}".format(position_schema.cash))
-            # logger.info("portfolio_value: {}".format(position_schema.portfolio_value))
             position_schema.cash = position_schema.portfolio_value - total_position_margin
             position_schema.daily_return = position_schema.portfolio_value / position_schema.pre_portfolio_value - 1
-            if benchmark_dict:
-                benchmark = benchmark_dict.get(portfolio_id)
-                if not benchmark:
-                    position_info[portfolio_id] = position_schema
-                    continue
-                if force_evaluate_date:
-                    position_schema.benchmark_return = benchmark_change_percent.at[benchmark]
-                else:
-                    benchmark_price_item = last_price_info.get(benchmark)
-                    pre_benchmark_price = self.pms_broker.get_pre_close_price_of_(benchmark)
-                    if benchmark_price_item and pre_benchmark_price is not None:
-                        position_schema.benchmark_return = calc_return(pre_benchmark_price,
-                                                                       benchmark_price_item['closePrice'])
             position_info[portfolio_id] = position_schema
-        # logger.info('*'*30)
         return position_info
 
     def _order_expired_position(self, position_info):
