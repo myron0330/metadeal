@@ -6,15 +6,15 @@
 import os
 import json
 import bisect
-import DataAPI
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from api_client import Client
 from lib.const import (
     BASE_FUTURES_PATTERN,
-    CONTINUOUS_FUTURES_PATTERN
+    CONTINUOUS_FUTURES_PATTERN,
+    MULTI_FREQ_PATTERN
 )
 
 
@@ -271,7 +271,7 @@ def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIE
     Returns:
         dict: key-->attribute, value-->DataFrame
     """
-    universe = list(universe)
+    universe = filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe)
     trading_days = sorted([trading_day.strftime("%Y%m%d") for trading_day in trading_days])
     trading_day_length = len(trading_days)
     symbols_length = len(universe)
@@ -345,12 +345,12 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
         >> equity_data = load_minute_futures_data(universe, trading_days, ['closePrice'])
 
     """
-    universe = list(universe)
+    universe = filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe)
     trading_days_index = [dt.strftime("%Y-%m-%d") for dt in trading_days]
     trading_days = [dt.strftime("%Y%m%d") for dt in trading_days]
     trading_days_length = len(trading_days)
     universe_length = len(universe)
-
+    unit = int(freq[:-1]) if MULTI_FREQ_PATTERN.match(freq) else 1
     batch_size = 1
     batches = [universe[i:min(i+batch_size, universe_length)] for i in range(0, universe_length, batch_size)]
 
@@ -358,11 +358,6 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
         import os
         import json
 
-        # data_cube_fields = [
-        #     'openPrice', 'highPrice', 'lowPrice',
-        #     'closePrice', 'turnoverVol', 'turnoverValue',
-        #     'openInterest', 'tradeDate'
-        # ]
         if not batch:
             return index, dict()
         os.environ['privilege'] = json.dumps({'basic': 1})
@@ -370,7 +365,7 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
               'instrumentID={}&startDate={}&endDate={}&unit={}'.format(batch[0],
                                                                        trading_days[0],
                                                                        trading_days[-1],
-                                                                       1)
+                                                                       unit)
         code, resp_data = client.getData(url)
         if code != 200:
             raise Exception
@@ -389,18 +384,6 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
         for symbol in batch:
             symbol_data = raw_data[symbol]
             symbol_data.dropna(inplace=True)
-            # trade_dates = symbol_data['tradeDate'].tolist()
-            # sorted_trade_dates = sorted(set(trade_dates), key=trade_dates.index)
-            # next_date_mapping = dict(zip(sorted_trade_dates[:-1], sorted_trade_dates[1:]))
-
-            # def _transfer_clearing_date(trade_time):
-            #     """
-            #     Transfer clearing date based on  trade time.
-            #     """
-            #     date, minute = trade_time.split(' ')
-            #     if minute >= '21:00':
-            #         return next_date_mapping[date]
-            #     return date
             symbol_data['volume'] = symbol_data['turnoverVol']
             symbol_data['symbol'] = symbol
             frame_list = [symbol_data[symbol_data.clearingDate == _] for _ in set(symbol_data['clearingDate'])]
@@ -426,7 +409,7 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
     for response in sorted(responses.items(), key=lambda x: x[0]):
         _, data = response
         data_all.update(data)
-    data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False) for (key, item) in data_all.iteritems()}
+    data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False)[field] for (key, item) in data_all.iteritems()}
     data_all = dict(pd.Panel.from_dict(data_all).swapaxes(0, 2))
     for var, values in data_all.iteritems():
         for sec in set(universe) - set(data_all[var].keys()):
@@ -536,6 +519,6 @@ if __name__ == '__main__':
     # print data_cube_data
     # print load_daily_futures_data(['RB1810', 'RM809'],
     #                               get_trading_days('20180301', '20180401'))
-    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'))
+    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'), freq='15m')
     # test_data = load_futures_rt_minute_data(['RB1810'])
     print test_data

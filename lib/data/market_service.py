@@ -10,7 +10,6 @@ from utils.adjust_utils import *
 from utils.datetime_utils import (
     get_end_date,
     get_previous_trading_date,
-    get_next_trading_date
 )
 from . asset_service import AssetType, AssetService
 from .. data.universe_service import UniverseService, Universe
@@ -18,6 +17,7 @@ from .. core.enums import SecuritiesType
 from .. database.database_api import (
     load_futures_daily_data,
     load_futures_minute_data,
+    load_futures_rt_minute_data
 )
 
 from .. const import (
@@ -25,10 +25,10 @@ from .. const import (
     FUTURES_DAILY_FIELDS,
     FUTURES_MINUTE_FIELDS,
     TRADE_ESSENTIAL_MINUTE_BAR_FIELDS,
-    REAL_TIME_MINUTE_BAR_FIELDS
+    REAL_TIME_MINUTE_BAR_FIELDS,
+    MULTI_FREQ_PATTERN
 )
 
-MULTI_FREQ_PATTERN = re.compile('(\d+)m')
 CURRENT_BAR_FIELDS_MAP = {
     'barTime': 'barTime',
     'closePrice': 'closePrice',
@@ -248,7 +248,7 @@ def _load_current_bars_by_now(current_trading_day, universe, fields, load_func):
         attribute: df
 
     """
-    sta_data = load_func(current_trading_day, universe, fields)
+    sta_data = load_func(current_trading_day, universe)
 
     a_df_dict = {}
     current_str = current_trading_day.strftime('%Y-%m-%d')
@@ -469,7 +469,7 @@ class MarketService(object):
         """
         for market_data in self.market_data_list:
             if market_data is not None:
-                market_data.rolling_load_daily_data(trading_days, max_cache_days, self.asset_service)
+                market_data.rolling_load_daily_data(trading_days, max_cache_days, asset_service=self.asset_service)
                 self.daily_bars_loaded_days = market_data.daily_bars_loaded_days or self.daily_bars_loaded_days
 
     def rolling_load_minute_data(self, trading_days, max_cache_days=5):
@@ -830,6 +830,9 @@ class MarketData(object):
             valid_trading_days = self._daily_bars_loaded_days
         return valid_trading_days[0] <= end_date <= valid_trading_days[-1]
 
+    def _current_trading_day_bars_loader(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 class FuturesMarketData(MarketData):
     """
@@ -886,12 +889,10 @@ class FuturesMarketData(MarketData):
             return
         MarketData.rolling_load_daily_data(self, trading_days, max_cache_days)
         self._prev_clearing_date_map = dict(zip(
-            self._daily_bars_loaded_days, [get_previous_trading_date(trading_days[0])] + self._daily_bars_loaded_days[:-1]))
+            self._daily_bars_loaded_days,
+            [get_previous_trading_date(trading_days[0])] + self._daily_bars_loaded_days[:-1]))
         self._prev_clearing_date_map = {key.strftime('%Y-%m-%d'): value.strftime('%Y-%m-%d')
                                         for key, value in self._prev_clearing_date_map.iteritems()}
-        continuous_list = asset_service.filter_symbols(asset_type=AssetType.CONTINUOUS_FUTURES)
-        # if len(continuous_list) > 0:
-        #     self.calc_continuous_fq_factors(continuous_list, asset_service._artificial_switch_info)
 
     def rolling_load_minute_data(self, trading_days, max_cache_days):
         """
@@ -978,21 +979,22 @@ class FuturesMarketData(MarketData):
             minute_data['turnoverVol'] = minute_data['volume']
         return minute_data
 
-    def _current_trading_day_bars_loader(self, current_trading_day, universe, fields):
+    @staticmethod
+    def _current_trading_day_bars_loader(current_trading_day, universe, **kwargs):
         """
-        当前交易日已聚合1分钟线bar线数据加载
+        Load real-time 1 minute bars.
         Args:
             current_trading_day:
             universe(list of set):
             fields(list)
-        Returns:
 
+        Returns:
+            dict: future real-time data
         """
         # customize start_time, end_time, fields
-        fields = fields or REAL_TIME_MINUTE_BAR_FIELDS
         current_date = datetime.datetime.today()
         if (current_trading_day > current_date) and (20 <= current_date.hour <= 21):
             sta_data = dict()
         else:
-            sta_data = MktFutBarRTIntraDayGet(securityID=universe, start_time=None, end_time=None)
+            sta_data = load_futures_rt_minute_data(universe)
         return sta_data

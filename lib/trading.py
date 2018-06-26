@@ -85,6 +85,3 @@ def trading(strategy_code, config=None, connect_json=None, debug=False, **kwargs
     trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_minutely(clock.current_date))
     trading_agent.pre_trading_minute(clock.current_date)
     trading_agent.start()
-
-
-import DataAPI

@@ -84,3 +84,4 @@ HISTORY_ESSENTIAL_MINUTE_BAR_FIELDS = ['openPrice', 'closePrice', 'highPrice', '
                                        'turnoverVol', 'turnoverValue', 'barTime', 'tradeTime']
 REAL_TIME_MINUTE_BAR_FIELDS = ['barTime', 'closePrice', 'highPrice', 'lowPrice', 'openPrice',
                                'totalValue', 'totalVolume']
+MULTI_FREQ_PATTERN = re.compile('(\d+)m')
