@@ -22,20 +22,16 @@ from . trading_agent import TradingAgent
 from . configs import ctp_config
 
 
-def trading(strategy_code, config=None, connect_json=None, debug=False, **kwargs):
+def trading(strategy_code, config=None, debug=False, **kwargs):
     """
     Trading function according to strategy code.
 
     Args:
         strategy_code(string): strategy code
         config(dict): config parameters
-        connect_json(string): connection json path
         debug(boolean): whether to debug
         **kwargs: key-value parameters
     """
-    # with open(connect_json, 'r+') as connect_file:
-    #     connect_json = json.load(connect_file)
-    # print connect_json
     config = config or dict()
     strategy, local_variables = strategy_from_code(strategy_code)
     sim_params = parse_sim_params(config, local_variables)
