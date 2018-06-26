@@ -2,17 +2,18 @@
 # **********************************************************************************#
 #     File: PMS broker: broker pms_agent for brokers in PMS.
 # **********************************************************************************#
+from utils.error_utils import Errors
 from . base import list_wrap_
 from . broker.futures_broker import FuturesBroker
 from . broker.security_broker import SecurityBroker
-from lib.gateway.subscriber import MarketQuote
+from .. market.market_quote import MarketQuote
 from .. const import (
     STOCK_PATTERN,
+    FUND_PATTERN,
     BASE_FUTURES_PATTERN,
     INDEX_PATTERN
 )
-from .. core.enum import SecuritiesType
-from .. utils.error_utils import Errors
+from .. core.enums import SecuritiesType
 
 
 market_quote = MarketQuote.get_instance()
@@ -95,7 +96,7 @@ class PMSBroker(object):
         Returns:
             float: price
         """
-        if STOCK_PATTERN.match(symbol) or INDEX_PATTERN.match(symbol):
+        if STOCK_PATTERN.match(symbol) or INDEX_PATTERN.match(symbol) or FUND_PATTERN.match(symbol):
             price = self.security_broker.get_pre_close_price().get(symbol)
         elif BASE_FUTURES_PATTERN.match(symbol):
             price = self.futures_broker.get_pre_settlement_price().get(symbol)

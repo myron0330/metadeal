@@ -2,12 +2,25 @@
 import json
 import numpy as np
 from uuid import uuid1
+from utils.error_utils import Errors
 from .. core.objects import ValueObject
-from .. const import (
-    DEFAULT_FILLED_AMOUNT,
-    DEFAULT_FILLED_TIME,
-    DEFAULT_TRANSACT_PRICE,
-)
+from .. core.enums import SecuritiesType
+
+
+def choose_order(account_type):
+    """
+    Choose order by account type.
+    Args:
+        account_type(string): account type.
+
+    Returns:
+        obj: Order object
+    """
+    if account_type == SecuritiesType.futures:
+        order_obj = Order
+    else:
+        raise Errors.INVALID_ACCOUNT_TYPE
+    return order_obj
 
 
 class OrderStateMessage(object):
@@ -39,6 +52,7 @@ class OrderStateMessage(object):
     NO_ENOUGH_SHARE = u'可赎回份额不足'
     INVALID_AMOUNT = u'下单数量非法'
     INVALID_PORTFOLIO = u'订单无对应组合持仓'
+    REJECTED = u'拒單'
 
 
 class OrderState(object):
@@ -283,7 +297,7 @@ class DigitalCurrencyOrder(ValueObject):
             'NEW': OrderStateMessage.OPEN,
             'PARTIALLY_FILLED': OrderStateMessage.PARTIAL_FILLED,
             'FILLED': OrderStateMessage.FILLED,
-            'REJECTED': OrderStateMessage.REJECT,
+            'REJECTED': OrderStateMessage.REJECTED,
             'CANCELED': OrderStateMessage.CANCELED
         }
         self.state = order_state_map[item['orderStatus']]

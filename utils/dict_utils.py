@@ -54,3 +54,25 @@ class DefaultDict(dict):
         default = deepcopy(self._default(**self._kwargs)) if isinstance(self._default, type) else deepcopy(self._default)
         self.__setitem__(key, default)
         return self.__getitem__(key)
+
+
+def dict_map(func, obj):
+    """
+    Traversal map functions to a dict
+
+    Args:
+        func(func): function definition
+        obj(dict): dict object
+    """
+    for key, value in obj.iteritems():
+        changed_key, changed_value = func(key, value)
+        obj[changed_key] = changed_value
+    return obj
+
+
+__all__ = [
+    'DefaultDict',
+    'CompositeDict',
+    'AttributeDict',
+    'dict_map'
+]

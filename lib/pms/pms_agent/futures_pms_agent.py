@@ -3,23 +3,33 @@
 #     File: PMS entity file.
 #   Author: Myron
 # **********************************************************************************#
+import time
 import numpy as np
 from copy import copy
-
+from utils.linked_list_utils import Node
+from utils.datetime_utils import (
+    get_next_trading_date,
+    get_latest_trading_date
+)
+from utils.dict_utils import *
 from .. base import *
 from .. pms_broker import PMSBroker
 from .. broker.futures_broker import transact_futures_bar
-from ... import logger
+from ... configs import logger
 from ... core.clock import clock
 from ... core.schema import *
-from ... core.enum import SecuritiesType
-from ... core.ctp import MarketBarData
-from lib.gateway.subscriber import MarketQuote
-from ... trade.order import PMSOrder, OrderState, OrderStateMessage
-from ... utils.linked_list_utils import Node
-from ... utils.date_utils import get_next_trading_date, get_latest_trading_date
-from ... utils.dict_utils import DefaultDict, dict_map
-from ... instrument.asset_service import AssetService
+from ... core.enums import (
+    SecuritiesType,
+    SchemaType
+)
+from ... database.database_api import *
+from ... market.market_quote import MarketQuote
+from ... trade.order import (
+    Order,
+    OrderState,
+    OrderStateMessage
+)
+from ... data.asset_service import AssetService
 
 
 asset_service = AssetService()
@@ -35,7 +45,8 @@ class FuturesPMSAgent(object):
     position_info = DefaultDict(PositionSchema(date=clock.current_date.strftime('%Y%m%d')))
     order_info = DefaultDict(OrderSchema(date=clock.current_date.strftime('%Y%m%d')))
     trade_info = DefaultDict(TradeSchema(date=clock.current_date.strftime('%Y%m%d')))
-    current_exchangeable = []
+    _current_exchangeable = []
+    current_exchangeable_flag = None
 
     def __new__(cls, **kwargs):
         """
@@ -50,11 +61,22 @@ class FuturesPMSAgent(object):
             cls._instance = super(FuturesPMSAgent, cls).__new__(cls)
         return cls._instance
 
+    @property
+    def current_exchangeable(self):
+        """
+        Current exchangeable futures.
+        """
+        cur_time = time.time()
+        if not self.current_exchangeable_flag and cur_time - self.current_exchangeable_flag > 60 * 30:
+            self._current_exchangeable = get_current_exchangeable_futures()
+            self.current_exchangeable_flag = cur_time
+        return self._current_exchangeable
+
     def prepare(self):
         """
         Prepare when service is loading.
         """
-        self.current_exchangeable = get_current_exchangeable_futures()
+        pass
 
     def pre_trading_day(self, force_date=None):
         """
@@ -66,18 +88,17 @@ class FuturesPMSAgent(object):
         date = force_date or clock.clearing_date
         message = 'Begin pre trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [PRE TRADING DAY]'+message)
-        portfolio_info = query_portfolio_info_by_(SecuritiesType.FUTURES)
-        futures_portfolio_ids = portfolio_info.keys()
+        futures_portfolio_ids = query_portfolio_ids_by_(SecuritiesType.FUTURES)
         delete_redis_([SchemaType.position, SchemaType.order], futures_portfolio_ids)
         position_info = query_by_ids_('mongodb', SchemaType.futures_position, date, futures_portfolio_ids)
-        invalid_portfolios = [key for key in position_info if key not in portfolio_info]
+        invalid_portfolios = [key for key in position_info if key not in futures_portfolio_ids]
         if invalid_portfolios:
             invalid_msg = 'Position not loaded'+', '.join(invalid_portfolios)
             logger.info('[SECURITY] [PRE TRADING DAY]'+invalid_msg)
         dump_to_('redis', SchemaType.position, position_info) if position_info else None
         order_info = query_by_ids_('mongodb', SchemaType.order, date, futures_portfolio_ids)
         dump_to_('redis', SchemaType.order, order_info) if order_info else None
-        self.current_exchangeable = get_current_exchangeable_futures()
+        # self.current_exchangeable = get_current_exchangeable_futures()
         self.clear()
         end_msg = 'End pre trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [PRE TRADING DAY]'+end_msg)
@@ -93,7 +114,7 @@ class FuturesPMSAgent(object):
         if isinstance(orders, dict):
             orders = [orders]
         pms_orders = \
-            [self._order_check(PMSOrder.from_request(order)) for order in orders]
+            [self._order_check(Order.from_request(order)) for order in orders]
         update_('redis', SchemaType.order, pms_orders, date=clock.clearing_date)
         active_pms_orders = [order for order in pms_orders if order.state in OrderState.ACTIVE]
         self.pms_broker.futures_broker.accept_orders(active_pms_orders)
@@ -108,8 +129,8 @@ class FuturesPMSAgent(object):
         date = force_date or clock.current_date
         msg = 'Begin post trading day: '+date.strftime('%Y-%m-%d')
         logger.info('[FUTURES] [POST TRADING DAY]'+msg)
-        portfolio_info = query_portfolio_info_by_(SecuritiesType.FUTURES)
-        position_info = query_by_ids_('mongodb', SchemaType.futures_position, date, portfolio_info.keys())
+        portfolio_info = query_portfolio_info_by_(SecuritiesType.futures)
+        position_info = query_by_ids_('mongodb', SchemaType.position, date, portfolio_info.keys())
         self.close_expired_position(position_info)
 
         benchmark_dict = {e.portfolio_id: e.benchmark for e in portfolio_info.itervalues()}
@@ -145,7 +166,7 @@ class FuturesPMSAgent(object):
             benchmark_change_percent = load_change_percent_for_benchmark(latest_trading_date)
         else:
             market_quote = MarketQuote.get_instance()
-            last_price_info = market_quote.get_price_info(security_type=SecuritiesType.FUTURES)
+            last_price_info = market_quote.get_price_info(security_type=SecuritiesType.futures)
 
         # logger.info('*'*30)
         for portfolio_id, position_schema in position_info.iteritems():
@@ -212,18 +233,18 @@ class FuturesPMSAgent(object):
                         msg = '{}: The contract {} is expiring and the system ' \
                               'closes relevant position.'.format(clock.current_date.strftime('%Y-%m-%d'), symbol)
                         logger.info('[FUTURES] [CLOSE EXPIRED]' + msg)
-                        order = PMSOrder(symbol=symbol, amount=long_amount, direction=-1, offset_flag='close',
-                                         portfolio_id=portfolio_id, order_time=order_time,
-                                         state=OrderState.ORDER_SUBMITTED)
+                        order = Order(symbol=symbol, amount=long_amount, direction=-1, offset_flag='close',
+                                      portfolio_id=portfolio_id, order_time=order_time,
+                                      state=OrderState.ORDER_SUBMITTED)
                         self._order_check(order)
                         orders_to_close[portfolio_id].append(order)
                     if short_amount and not np.isnan(short_amount):
                         msg = '{}: The contract {} is expiring and the system ' \
                               'closes relevant position.'.format(clock.current_date.strftime('%Y-%m-%d'), symbol)
                         logger.info('[FUTURES] [CLOSE EXPIRED]' + msg)
-                        order = PMSOrder(symbol=symbol, amount=short_amount, direction=1, offset_flag='close',
-                                         portfolio_id=portfolio_id, order_time=order_time,
-                                         state=OrderState.ORDER_SUBMITTED)
+                        order = Order(symbol=symbol, amount=short_amount, direction=1, offset_flag='close',
+                                      portfolio_id=portfolio_id, order_time=order_time,
+                                      state=OrderState.ORDER_SUBMITTED)
                         self._order_check(order)
                         orders_to_close[portfolio_id].append(order)
         return orders_to_close
@@ -244,8 +265,8 @@ class FuturesPMSAgent(object):
 
         # todo: 需用结算价
         market_quote = MarketQuote.get_instance()
-        last_price_info = market_quote.get_price_info(security_type=SecuritiesType.FUTURES)
-        nodes_positions = query_from_('redis', SchemaType.futures_position, portfolio_id=orders_to_close.keys())
+        last_price_info = market_quote.get_price_info(security_type=SecuritiesType.futures)
+        nodes_positions = query_from_('redis', SchemaType.position, portfolio_id=orders_to_close.keys())
 
         for portfolio_id, orders in orders_to_close.iteritems():
             current_position = nodes_positions.get(portfolio_id, None)
@@ -300,38 +321,26 @@ class FuturesPMSAgent(object):
         Check if the order is a valid security order
 
         Args:
-            order(PMSOrder): order
+            order(Order): order
         """
-        order._order_time = ' '.join([clock.current_date.strftime('%Y%m%d'), clock.current_minute])
+        order.order_time = ' '.join([clock.current_date.strftime('%Y%m%d'), clock.current_minute])
         if order.symbol not in self.current_exchangeable:
-            order._state = OrderState.REJECTED
-            order._state_message = OrderStateMessage.NINC_HALT
+            order.state = OrderState.REJECTED
+            order.state_message = OrderStateMessage.NINC_HALT
         if order.order_amount == 0 or not isinstance(order.order_amount, int):
-            order._state = OrderState.REJECTED
-            order._state_message = OrderStateMessage.INVALID_AMOUNT
+            order.state = OrderState.REJECTED
+            order.state_message = OrderStateMessage.INVALID_AMOUNT
         if order.offset_flag == 'close':
             available_amount = 0
-            position_info = query_from_('redis', SchemaType.futures_position,
+            position_info = query_from_('redis', SchemaType.position,
                                         portfolio_id=order.portfolio_id).get(order.portfolio_id)
             if position_info:
                 position = position_info.positions.get(order.symbol)
                 if position:
                     available_amount = position.long_amount if order.direction == -1 else position.short_amount
             if order.order_amount > available_amount:
-                order._state = OrderState.REJECTED
-                order._state_message = OrderStateMessage.NO_ENOUGH_AMOUNT
-        # else:
-        #     position_info = self.evaluate({order.portfolio_id: position_info})
-        #     # available_margin = calc_available_margin(position_info)
-        #     # order margin check
-        #     market_quote = MarketQuote.get_instance()
-        #     last_price = market_quote.get_price_info(universes=[order.symbol]).get(symbol)
-        #     multiplier = AssetService()
-        #     amount_can_buy = available_margin / last_price / multiplier
-        #     if order.order_amount > amount_can_buy:
-        #         order._state = OrderState.REJECTED
-        #         order._state_message = OrderStateMessage.INVALID_AMOUNT
-
+                order.state = OrderState.REJECTED
+                order.state_message = OrderStateMessage.NO_ENOUGH_AMOUNT
         msg = order.__repr__()
         logger.debug('[FUTURES] [ACCEPT ORDERS]'+msg)
         return order

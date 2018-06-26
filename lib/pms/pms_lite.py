@@ -2,19 +2,14 @@
 # **********************************************************************************#
 #     File: PMS broker: broker pms_agent for brokers in PMS.
 # **********************************************************************************#
-from lib.context.clock import clock
-from .base import *
-from .pms_agent.futures_pms_agent import FuturesPMSAgent
-from .pms_agent.security_pms_agent import SecurityPMSAgent
-from .pms_broker import PMSBroker
-from .. import logger
-from ..core.enum import SecuritiesType
-from ..core.schema import SchemaType
-from ..database.database_api import load_adjust_close_price, query_from_
-from lib.gateway.subscriber import MarketQuote
-from ..utils.date_utils import get_previous_trading_date
-from ..utils.dict_utils import DefaultDict
-from ..utils.error_utils import Errors
+from utils.dict_utils import DefaultDict
+from utils.error_utils import Errors
+from . base import *
+from . pms_agent.futures_pms_agent import FuturesPMSAgent
+from .. configs import logger
+from .. core.enums import SecuritiesType
+from .. core.schema import SchemaType
+from .. database.database_api import query_from_
 
 
 class PMSLiteMcs(type):
@@ -33,8 +28,6 @@ class PMSLite(object):
     """
     __metaclass__ = PMSLiteMcs
 
-    pms_broker = PMSBroker()
-    security_pms_agent = SecurityPMSAgent()
     futures_pms_agent = FuturesPMSAgent()
 
     def __new__(cls, *args, **kwargs):
@@ -56,23 +49,20 @@ class PMSLite(object):
         for securities_type in securities_type_list:
             self.pms_lites[securities_type].prepare()
 
-    def pre_trading_day(self, securities_type=SecuritiesType.ALL,
-                        with_dividend=True, force_date=None):
+    def pre_trading_day(self, securities_type=SecuritiesType.ALL, force_date=None,
+                        portfolio_ids=None):
         """
         Pre trading day: tasks before market opening
 
         Args:
             securities_type(string): securities type
-            with_dividend(boolean): if dividends is needed
             force_date(datetime.datetime): specific a base date
+            portfolio_ids(list): portfolio ID list
         """
         securities_type_list = list_wrap_(securities_type)
         for securities_type in securities_type_list:
-            if securities_type == SecuritiesType.SECURITY:
-                self.pms_lites[securities_type].pre_trading_day(with_dividend=with_dividend,
-                                                                force_date=force_date)
-            else:
-                self.pms_lites[securities_type].pre_trading_day(force_date=force_date)
+            if securities_type == SecuritiesType.futures:
+                self.pms_lites[securities_type].pre_trading_day(force_date=force_date, portfolio_ids=portfolio_ids)
 
     def accept_orders(self, orders, securities_type=SecuritiesType.ALL):
         """
@@ -85,23 +75,47 @@ class PMSLite(object):
         """
         self.pms_lites[securities_type].accept_orders(orders)
 
+    @staticmethod
+    def cancel_orders(to_cancel_list=None):
+        """
+        Cancel orders by portfolio_id.
+
+        Args:
+            to_cancel_list: cancel order list
+        """
+        import pandas as pd
+        from lib.trade.order import OrderState, OrderStateMessage
+        to_cancel_frame = pd.DataFrame(to_cancel_list).drop_duplicates()
+        if to_cancel_frame.empty:
+            return
+        group_result = to_cancel_frame.groupby('portfolio_id')
+        order_schemas = query_from_('redis', SchemaType.order, portfolio_id=list(group_result.groups))
+        for portfolio_id, order_schema in order_schemas.iteritems():
+            frame = group_result.get_group(portfolio_id)
+            for order_id in frame.order_id:
+                order = order_schema.orders.get(order_id)
+                if not order:
+                    continue
+                if order.state in OrderState.ACTIVE:
+                    order._state = OrderState.CANCELED
+                    order._state_message = OrderStateMessage.CANCELED
+        dump_to_('redis', SchemaType.order, order_schemas)
+
     def post_trading_day(self, securities_type=SecuritiesType.ALL,
-                         with_dividend=True, force_date=None):
+                         force_date=None,
+                         portfolio_ids=None):
         """
         Post trading day: tasks after market trading
 
         Args:
             securities_type(string): securities type
-            with_dividend(boolean): if dividends is needed
             force_date(datetime.datetime): specific a base date
+            portfolio_ids(list): portfolio id list
         """
         securities_type_list = list_wrap_(securities_type)
         for securities_type in securities_type_list:
-            if securities_type == SecuritiesType.SECURITY:
-                self.pms_lites[securities_type].post_trading_day(with_dividend=with_dividend,
-                                                                 force_date=force_date)
-            else:
-                self.pms_lites[securities_type].post_trading_day(force_date=force_date)
+            if securities_type == SecuritiesType.futures:
+                self.pms_lites[securities_type].post_trading_day(force_date=force_date, portfolio_ids=portfolio_ids)
 
     def clear(self, securities_type=SecuritiesType.ALL):
         """
@@ -126,17 +140,12 @@ class PMSLite(object):
         if not portfolio_info:
             mongodb_query_fields = {'$in': portfolio_ids}
             portfolio_info = query_from_('mongodb', SchemaType.portfolio, portfolio_id=mongodb_query_fields)
-        securities_portfolio_info = {portfolio_id: schema for portfolio_id, schema in portfolio_info.iteritems()
-                                     if schema.account_type == SecuritiesType.SECURITY}
         futures_portfolio_info = {portfolio_id: schema for portfolio_id, schema in portfolio_info.iteritems()
-                                  if schema.account_type == SecuritiesType.FUTURES}
+                                  if schema.account_type == SecuritiesType.futures}
         position_info = dict()
-        if securities_portfolio_info:
-            position_info.update(
-                query_from_('redis', SchemaType.position, portfolio_id=securities_portfolio_info.keys()))
         if futures_portfolio_info:
             position_info.update(
-                query_from_('redis', SchemaType.futures_position, portfolio_id=futures_portfolio_info.keys()))
+                query_from_('redis', SchemaType.position, portfolio_id=futures_portfolio_info.keys()))
         position_info = self.evaluate(portfolio_info=portfolio_info,
                                       position_info=position_info,
                                       with_benchmark=with_benchmark)
@@ -171,27 +180,21 @@ class PMSLite(object):
                 logger.debug(message)
                 continue
             securities_type = portfolio_info[portfolio_id].account_type
-            if securities_type == SecuritiesType.SECURITY:
-                position_info_dict[SecuritiesType.SECURITY][portfolio_id] = position_schema
-            elif securities_type == SecuritiesType.FUTURES:
-                position_info_dict[SecuritiesType.FUTURES][portfolio_id] = position_schema
+            if securities_type == SecuritiesType.futures:
+                position_info_dict[SecuritiesType.futures][portfolio_id] = position_schema
             else:
                 message = '[EVALUATE] portfolio_id: {}, invalid schema type.'.format(portfolio_id)
                 logger.debug(message)
                 continue
             if with_benchmark:
-                if securities_type == SecuritiesType.SECURITY:
-                    benchmark_info_dict[SecuritiesType.SECURITY][portfolio_id] = portfolio_info[portfolio_id].benchmark
-                elif securities_type == SecuritiesType.FUTURES:
-                    benchmark_info_dict[SecuritiesType.FUTURES][portfolio_id] = portfolio_info[portfolio_id].benchmark
+                if securities_type == SecuritiesType.futures:
+                    benchmark_info_dict[SecuritiesType.futures][portfolio_id] = portfolio_info[portfolio_id].benchmark
                 else:
                     message = '[EVALUATE] portfolio_id: {}, invalid schema type.'.format(portfolio_id)
                     logger.debug(message)
                     continue
         for securities_type, info in position_info_dict.iteritems():
-            if securities_type == SecuritiesType.SECURITY:
-                current_pms_agent = self.security_pms_agent
-            elif securities_type == SecuritiesType.FUTURES:
+            if securities_type == SecuritiesType.futures:
                 current_pms_agent = self.futures_pms_agent
             else:
                 raise Errors.INVALID_SECURITIES_TYPE
@@ -200,54 +203,3 @@ class PMSLite(object):
                                                         force_evaluate_date=force_evaluate_date)
             evaluated_position_info.update(evaluated_info)
         return evaluated_position_info
-
-    def get_benchmark_interval_return(self, benchmark, start=None, end=None):
-        """
-        返回任意日期区间的指数累积收益
-        Args:
-            benchmark(string): benchmark symbol
-            start(datetime.datetime): start date
-            end(datetime.datetime): end date
-
-        Returns:
-            float: benchmark return
-        """
-        end = end or clock.current_date
-        if end == clock.current_date:
-            market_quote = MarketQuote.get_instance()
-            last_price_info = market_quote.get_price_info(universes=[benchmark])
-            end_price_item = last_price_info.get(benchmark)
-        else:
-            # todo. support futures as benchmark.
-            end_price_item = {'closePrice': float(load_adjust_close_price(end, [benchmark]))}
-        start = start or clock.current_date
-        if start == clock.current_date:
-            start_price = self.pms_broker.get_pre_close_price_of_(benchmark)
-        else:
-            # todo. support futures as benchmark.
-            start = get_previous_trading_date(start)
-            start_price = float(load_adjust_close_price(start, [benchmark]))
-        if end_price_item and start_price is not None:
-            cumulative_return = calc_return(start_price, end_price_item['closePrice'])
-            return cumulative_return
-
-    def get_current_benchmark_return(self, benchmark, base):
-        """
-        返回benchmark当天回报率，以及基于base值的累积回报率
-        Args:
-            benchmark(string): benchmark symbol
-            base(float): benchmark base
-
-        Returns:
-            float: cumulative returns
-        """
-        market_quote = MarketQuote.get_instance()
-        last_price_info = market_quote.get_price_info(universes=[benchmark])
-        end_price_item = last_price_info.get(benchmark)
-        start_price = self.pms_broker.get_pre_close_price_of_(benchmark)
-        if end_price_item and start_price is not None:
-            bk_return = calc_return(start_price, end_price_item['closePrice'])
-            bk_cumulative_return = calc_return(base, end_price_item['closePrice'])
-        else:
-            bk_return = bk_cumulative_return = None
-        return bk_return, bk_cumulative_return

@@ -136,9 +136,10 @@ class Errors(object):
     INVALID_SCHEMA_TYPE = SchemaException(error(500, '[SchemaException] INVALID Schema type.'))
 
     INVALID_DATABASE = DatabaseException(error(500, '[DatabaseException] INVALID database.'))
+    INVALID_REDIS_SCHEMA_TYPE = DatabaseException(error(500, '[DatabaseException] Redis: Schema_type is not supported.'))
+    INVALID_SECURITIES_TYPE = DatabaseException(error(500, '[DatabaseException] securities type invalid.'))
 
     INVALID_FILLED_AMOUNT = TradingException(error(500, '[TradingException] INVALID filled amount.'))
-
     INVALID_DATE = TradingInputException(error(500, '[TradingInputException] INVALID date.'))
     INVALID_FREQ = TradingInputException(error(500, '[TradingInputException] INVALID freq.'))
     INVALID_REFRESH_RATE = TradingInputException(error(500, '[TradingInputException] INVALID refresh_rate.'))
@@ -159,6 +160,7 @@ class Errors(object):
     INVALID_COMMISSION = TradingException(error(500, '[TradingException] INVALID Commission instance.'))
     INVALID_ORDER_AMOUNT = TradingException(error(500, '[TradingException] INVALID order amount.'))
     INVALID_ORDER_STATE = TradingException(error(500, '[TradingException] INVALID order state.'))
+    INVALID_ORDER_OBJECT = TradingException(error(500, '[TradingException] INVALID order object.'))
     SWITCH_POSITION_FAILED = TradingException(error(500, '[TradingException] Switch position failed.'))
     INVALID_HISTORY_END_MINUTE = TradingException(error(500, '[TradingException]'))
 

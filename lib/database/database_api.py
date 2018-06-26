@@ -16,6 +16,16 @@ from lib.const import (
     CONTINUOUS_FUTURES_PATTERN,
     MULTI_FREQ_PATTERN
 )
+from mongodb_api import (
+    query_from_mongodb,
+    dump_schema_to_mongodb
+)
+from redis_api import (
+    query_from_redis,
+    dump_schema_to_redis,
+    delete_keys_redis,
+    delete_items_in_redis
+)
 
 
 os.environ['privilege'] = json.dumps({'basic': 1})
@@ -103,7 +113,7 @@ def get_direct_trading_day(date, step, forward):
     return target_trading_days[target_index]
 
 
-def get_data_cube(symbols, field, start, end=None, freq='1d', style='sat', adj=None, **kwargs):
+def get_data_cube(symbols, field, start, end=None, freq='1d'):
     """
     Get data cube based on DataAPI.
 
@@ -296,9 +306,11 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
     Available data: closePrice, highPrice, lowPrice, openPrice, turnoverVol, clearingDate, barTime, tradeDate
 
     Args:
-        universe (list of str): futures universe list
-        trading_days (list of datetime.datetime): trading days list
-        field (list of string): needed fields
+        universe(list of str): futures universe list
+        trading_days(list of datetime.datetime): trading days list
+        field(list of string): needed fields
+        freq(string): frequency string
+
     Returns:
         dict of str=>DataFrame: key-->field，value-->DataFrame
 
@@ -372,7 +384,8 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
     for response in sorted(responses.items(), key=lambda x: x[0]):
         _, data = response
         data_all.update(data)
-    data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False)[field] for (key, item) in data_all.iteritems()}
+    data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False)[field]
+                for (key, item) in data_all.iteritems()}
     data_all = dict(pd.Panel.from_dict(data_all).swapaxes(0, 2))
     for var, values in data_all.iteritems():
         for sec in set(universe) - set(data_all[var].keys()):
@@ -459,29 +472,84 @@ def load_futures_main_contract(contract_objects=None, trading_days=None, start=N
     return frame
 
 
-if __name__ == '__main__':
-    print get_trading_days(datetime(2015, 1, 1), datetime(2015, 2, 1))
-    print get_direct_trading_day(datetime(2015, 1, 1), step=0, forward=True)
-    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=True)
-    print get_direct_trading_day(datetime(2015, 1, 1), step=1, forward=False)
-    print load_futures_base_info(['RB1810'])
-    print load_futures_main_contract(contract_objects=['RB', 'AG'], start='20180401', end='20180502')
-    daily_data = load_futures_daily_data(['RB1810', 'RM809'],
-                                         get_trading_days('20180301', '20180401'),
-                                         attributes=['closePrice', 'turnoverValue'])
-    print daily_data
-    base_info = load_futures_base_info(['RB1810', 'RM809'])
-    print base_info
-    # data_cube_fields = [
-    #     'openPrice', 'highPrice', 'lowPrice',
-    #     'closePrice', 'turnoverVol', 'turnoverValue',
-    #     'openInterest', 'tradeDate'
-    # ]
-    # data_cube_data = get_data_cube(symbols=['RB1810', 'RM809'], field=data_cube_fields,
-    #                                start='2018-06-14', end='2018-06-16', freq='m')
-    # print data_cube_data
-    # print load_daily_futures_data(['RB1810', 'RM809'],
-    #                               get_trading_days('20180301', '20180401'))
-    test_data = load_futures_minute_data(['RB1810', 'RM809'], get_trading_days('20180614', '20180616'), freq='15m')
-    # test_data = load_futures_rt_minute_data(['RB1810'])
-    print test_data
+def query_from_(database, schema_type, portfolio_id=None, date=None, **kwargs):
+    """
+    Query schema from database
+
+    Args:
+        database(string): database name | {'mongodb', 'redis', 'all'}
+        schema_type(string): schema type
+        portfolio_id(string or list or dict): optional, portfolio id or portfolio ids
+        date(string): optional, query date
+    """
+    if database == 'mongodb':
+        return query_from_mongodb(schema_type, portfolio_id=portfolio_id, date=date, **kwargs)
+    if database == 'redis':
+        return query_from_redis(schema_type, portfolio_id=portfolio_id, **kwargs)
+
+
+def dump_to_(database, schema_type, schema, unit_dump=True, **kwargs):
+    """
+    Dump schema to database
+
+    Args:
+        database(string): database name | {'mongodb', 'redis', 'all'}
+        schema_type(string): schema type
+        schema(schema or dict of schema): schema object
+        unit_dump(boolean): whether to do unit dump
+    """
+    if database in ['mongodb', 'all']:
+        dump_schema_to_mongodb(schema_type, schema, unit_dump=unit_dump)
+    if database in ['redis', 'all']:
+        dump_schema_to_redis(schema_type, schema, **kwargs)
+
+
+def delete_(database, *collections):
+    """
+    Delete collections in database
+
+    Args:
+        database(string): database name | {'mongodb', 'redis', 'all'}
+    """
+    if database in ['redis']:
+        return delete_keys_redis(*collections)
+
+
+def delete_items_(database, schema_type, items=None, **kwargs):
+    """
+    Delete items in a database table or hash map
+
+    Args:
+        database(string): database name | {'mongodb', 'redis', 'all'}
+        schema_type(string): schema type
+        items(string or list or dict): optional, portfolio id or portfolio ids
+    """
+    if database in ['redis', 'all']:
+        if isinstance(items, (str, unicode)):
+            keys = [items]
+        elif isinstance(items, (list, tuple, set, dict)):
+            keys = list(items)
+        else:
+            keys = None
+        if keys:
+            delete_items_in_redis(schema_type, keys=keys)
+    if database in ['mongodb', 'all']:
+        raise NotImplementedError
+
+
+__all__ = [
+    'delete_',
+    'delete_items_',
+    'dump_to_',
+    'get_data_cube',
+    'get_direct_trading_day',
+    'get_end_date',
+    'get_trading_days',
+    'load_futures_rt_minute_data',
+    'load_futures_base_info',
+    'load_futures_daily_data',
+    'load_futures_main_contract',
+    'load_futures_minute_data',
+    'normalize_date',
+    'query_from_'
+]

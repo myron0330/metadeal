@@ -1,6 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 from utils.error_utils import Errors
+from .. core.enums import SecuritiesType
+
+
+def choose_position(account_type):
+    """
+    Choose position by account type.
+    Args:
+        account_type(string): account type.
+
+    Returns:
+        obj: Position object
+    """
+    if account_type == SecuritiesType.futures:
+        position_obj = FuturesPosition
+    else:
+        raise Errors.INVALID_ACCOUNT_TYPE
+    return position_obj
 
 
 class Position(object):
@@ -233,7 +250,78 @@ class LongShortPosition(object):
                                                                    self.short_margin, self.long_cost,
                                                                    self.short_cost, self.profit)
 
-            
+
+class FuturesPosition(LongShortPosition):
+
+    def __init__(self, symbol, price, long_amount=0, short_amount=0, long_margin=0, short_margin=0,
+                 long_cost=0, short_cost=0, value=0, profit=0, today_long_open=0, today_short_open=0, today_profit=0):
+        super(FuturesPosition, self).__init__(symbol, price, long_amount, short_amount, long_margin, short_margin,
+                                              long_cost, short_cost, value, profit)
+        self.today_long_open = today_long_open
+        self.today_short_open = today_short_open
+        self.today_profit = today_profit
+
+    def calc_close_pnl(self, trade, multiplier):
+        """
+        仅计算并返回平仓盈亏，不更新价格、amount及value
+
+        Args:
+            trade(PMSTrade): 成交记录
+            multiplier(float): 合约乘数
+
+        Returns(float): 平仓盈亏
+
+        """
+        amount = self.long_amount if trade.direction == 1 else self.short_amount
+        if amount < trade.filled_amount:
+            raise Errors.INVALID_FILLED_AMOUNT
+        cost = self.long_cost if trade.direction == 1 else self.short_cost
+        close_pnl = trade.direction * (trade.transact_price - cost) * trade.filled_amount * multiplier
+        return close_pnl
+
+    @classmethod
+    def from_request(cls, request):
+        """
+        Generate new FuturesPosition from request
+
+        Args:
+            request(dict): request data
+        """
+        return cls(**request)
+
+    @classmethod
+    def from_query(cls, query_data):
+        """
+        Recover existed FuturesPosition from query data
+
+        Args:
+            query_data(dict): query data
+        """
+        position = cls(**query_data)
+        return position
+
+    def to_database_item(self):
+        """
+        To redis item
+        """
+        redis_item = {
+            'symbol': self.symbol,
+            'price': self.price,
+            'long_amount': self.long_amount,
+            'short_amount': self.short_amount,
+            'long_margin': self.long_margin,
+            'short_margin': self.short_margin,
+            'long_cost': self.long_cost,
+            'short_cost': self.short_cost,
+            'value': self.value,
+            'profit': self.profit,
+            'today_long_open': self.today_long_open,
+            'today_short_open': self.today_short_open,
+            'today_profit': self.today_profit
+        }
+        return redis_item
+
+
 class DigitalCurrencyPosition(object):
 
     def __init__(self, currency=None, free=0, used=0, exchange=None, cost=0, profit=0.0, value=None):
