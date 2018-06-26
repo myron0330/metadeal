@@ -119,6 +119,33 @@ def timestamp_to_date(timestamp):
     return time.strftime('%Y%m%d', time.localtime(timestamp / 1000))
 
 
+def is_trading_day(date):
+    """
+    Tell whether date is trading day.
+    Args:
+        date(datetime.datetime or string): date
+
+    Returns:
+        bool: whether date is trading day
+    """
+    current_date = normalize_date(date)
+    trading_days = get_trading_days(start=current_date, end=current_date)
+    return bool(trading_days)
+
+
+def get_clearing_date_of(now=None):
+    """
+    Get clearing date of datetime.
+
+    Args:
+        now(datetime.datetime): now
+    """
+    now = now or datetime.now()
+    if now.strftime('%H:%M') < '20:00' and is_trading_day(now):
+        return normalize_date(now)
+    return get_upcoming_trading_date(now)
+
+
 __all__ = [
     'get_end_date',
     'get_trading_days',
@@ -135,4 +162,5 @@ __all__ = [
     'get_upcoming_trading_date',
     'date_to_timestamp',
     'timestamp_to_date',
+    'get_clearing_date_of'
 ]

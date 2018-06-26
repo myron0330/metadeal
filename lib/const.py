@@ -16,8 +16,8 @@ DEFAULT_FILLED_TIME = None
 DEFAULT_TRANSACT_PRICE = 0
 
 DEFAULT_KEYWORDS = {
-    'start': datetime.today().strftime('%Y-%m-%d'),
-    'end': datetime.today().strftime('%Y-%m-%d'),
+    'start': None,
+    'end': None,
     'benchmark': 'RBM0',
     'universe': ['RBM0'],
     'capital_base': float(1e5),

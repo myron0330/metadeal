@@ -2,6 +2,7 @@
 # **********************************************************************************#
 #     File: trading base.
 # **********************************************************************************#
+from utils.datetime_utils import get_clearing_date_of
 from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
 from . trade import Commission, Slippage
@@ -39,8 +40,8 @@ def parse_sim_params(config, local_variables):
     Returns:
         SimulationParameters: simulation parameters.
     """
-    start = parse_prior_params(config, local_variables, 'start', DEFAULT_KEYWORDS['start'])
-    end = parse_prior_params(config, local_variables, 'end', DEFAULT_KEYWORDS['end'])
+    start = parse_prior_params(config, local_variables, 'start', get_clearing_date_of())
+    end = parse_prior_params(config, local_variables, 'end', get_clearing_date_of())
     max_history_window = \
         parse_prior_params(config, local_variables, 'max_history_window', DEFAULT_KEYWORDS['max_history_window'])
     universe = parse_prior_params(config, local_variables, 'universe', DEFAULT_KEYWORDS['universe'])

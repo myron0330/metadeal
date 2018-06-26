@@ -13,7 +13,6 @@ from lib.gateway.strategy_gateway import StrategyGateway
 def handle_tick(tick):
     print tick.instrument_id
 
-
 data = json.load(open('CTP_connect.json', 'r+'))
 address = data['mdAddress']
 user_id = data['userID']
