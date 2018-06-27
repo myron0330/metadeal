@@ -32,6 +32,54 @@ class PMSLite(object):
 
     futures_pms_agent = FuturesPMSAgent()
 
+    def __init__(self, clock=None, accounts=None, data_portal=None, cash_info=None,
+                 position_info=None, initial_value_info=None, initial_orders_info=None,
+                 order_info=None, trade_info=None, portfolio_value_info=None,
+                 benchmark_info=None, total_commission_info=None, market_roller=None,
+                 settlement_info=None):
+        """
+        Portfolio management system in lite.
+
+        Args:
+            clock(clock): clock
+            accounts(dict): account dict
+            data_portal(data_portal): data portal module
+            cash_info(dict): account cash information |-> dict(account: dict(date: float))
+            position_info(dict): account position information |-> dict(account: dict(date: dict))
+            initial_value_info(dict): initial value information |-> dict(account: dict)
+            initial_orders_info(dict): initialize order information |-> dict(account: dict(date: dict))
+            order_info(dict): order information |-> dict(account: dict(date: list))
+            trade_info(dict): trade information |-> dict(account: dict(date: list))
+            portfolio_value_info(dict): portfolio value information |-> dict(account: dict(date: float))
+            total_commission_info(dict): total commission record　｜-> dict(account: dict(date: float))
+            settlement_info(dict): settlement information | -> dict(account: dict(data: list))
+        """
+        self.clock = clock
+        self.accounts = accounts
+        self.data_portal = data_portal
+        self.cash_info = cash_info or DefaultDict(dict)
+        self.position_info = position_info or DefaultDict(DefaultDict(dict))
+        self.initial_value_info = initial_value_info or DefaultDict(dict)
+        self.initial_orders_info = initial_orders_info or DefaultDict(dict)
+        self.order_info = order_info or DefaultDict(DefaultDict(dict))
+        self.pending_order_info = order_info or DefaultDict(DefaultDict(dict))
+        self.trade_info = trade_info or DefaultDict(DefaultDict(list))
+        self.portfolio_value_info = portfolio_value_info or DefaultDict(dict)
+        self.benchmark_info = benchmark_info or dict()
+        self.total_commission_info = total_commission_info or DefaultDict(DefaultDict(0))
+        self.market_roller = market_roller
+        self.settlement_info = settlement_info or DefaultDict(DefaultDict(list))
+
+    @staticmethod
+    def deal_with_position(position):
+        print position
+
+    def deal_with_order(self):
+        raise NotImplementedError
+
+    def deal_with_trade(self):
+        raise NotImplementedError
+
     def prepare(self, securities_type=SecuritiesType.ALL):
         """
         Prepare when service is loading

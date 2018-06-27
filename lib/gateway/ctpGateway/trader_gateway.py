@@ -7,6 +7,7 @@ from lib.api.ctp import *
 from lib.core.ctp import *
 from lib.configs import logger
 from . ctp_base import get_temp_path
+from ... event.event_base import EventType
 
 
 ORDER_TYPE_MAP = {
@@ -391,6 +392,10 @@ class CtpTraderGateway(TdApi):
             last(unused): unused
         """
         response = PositionResponse.from_ctp(data)
+        parameters = {
+            'position': response,
+        }
+        self.event_engine.publish(EventType.event_deal_with_position, **parameters)
         logger.info('[onRspQryInvestorPosition] {}'.format(response))
 
     def onRspOrderInsert(self, data, error, n, last):

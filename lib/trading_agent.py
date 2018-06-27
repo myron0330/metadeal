@@ -21,7 +21,7 @@ class TradingAgent(TradingGateway):
                  context=None, account_manager=None,
                  market_roller=None, trading_scheduler=None,
                  event_engine=None, ctp_gateway=None,
-                 log=None, debug=False):
+                 pms_lite=None, log=None, debug=False):
         super(TradingAgent, self).__init__()
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
@@ -34,6 +34,7 @@ class TradingAgent(TradingGateway):
         self.trading_scheduler = trading_scheduler
         self.event_engine = event_engine
         self.ctp_gateway = ctp_gateway
+        self.pms_lite = pms_lite
         self.log = log
         self.debug = debug
         self.trading_days_length = None
@@ -88,6 +89,8 @@ class TradingAgent(TradingGateway):
         """
         for event in EventType.trading_agent():
             event_engine.register_handlers(event, getattr(self, event))
+        for event in EventType.pms_lite():
+            event_engine.register_handlers(event, getattr(self.pms_lite, event))
 
     def prepare_initialize(self, **kwargs):
         """

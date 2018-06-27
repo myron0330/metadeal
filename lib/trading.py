@@ -17,6 +17,7 @@ from . gateway import (
     PMSGateway,
     CTPGateway
 )
+from . pms.pms_lite import PMSLite
 from . market import MarketRoller
 from . trading_base import (
     strategy_from_code,
@@ -63,6 +64,7 @@ def trading(strategy_code, config=None, debug=False, log_obj=None, **kwargs):
     ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          ctp_gateway=ctp_gateway)
+    pms_lite = PMSLite()
     account_manager = AccountManager.from_config(clock, sim_params, data_portal,
                                                  event_engine=event_engine,
                                                  pms_gateway=pms_gateway)
@@ -81,11 +83,12 @@ def trading(strategy_code, config=None, debug=False, log_obj=None, **kwargs):
                                  market_roller=market_roller,
                                  trading_scheduler=trading_scheduler,
                                  event_engine=event_engine,
-                                 ctp_gateway=ctp_gateway)
+                                 ctp_gateway=ctp_gateway,
+                                 pms_lite=pms_lite)
     trading_agent.prepare_initialize(minute_loading_rate=5)
-    trading_agent.pre_trading_day(clock.current_date)
-    trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_minutely(clock.current_date))
-    trading_agent.pre_trading_minute(clock.current_date)
+    trading_agent.pre_trading_day(clock.clearing_date)
+    trading_agent.rolling_load_minute_data(trading_scheduler.rolling_load_ranges_minutely(clock.clearing_date))
+    trading_agent.pre_trading_minute(clock.clearing_date)
     trading_agent.start()
     while trading_agent.is_active():
         time.sleep(1)
