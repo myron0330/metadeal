@@ -483,4 +483,3 @@ __all__ = [
     'SettlementConfirmResponse',
     'PositionResponse'
 ]
-

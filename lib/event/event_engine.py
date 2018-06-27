@@ -4,6 +4,7 @@
 # **********************************************************************************#
 from Queue import Queue, Empty
 from threading import Thread
+from utils.error_utils import HandleDataException
 from utils.dict_utils import DefaultDict
 from . event_base import Event, EventType
 
@@ -15,11 +16,13 @@ class EventEngine(object):
     def __init__(self,
                  active=False,
                  event_queue=None,
-                 event_handlers=None):
+                 event_handlers=None,
+                 log=None):
         self._active = active
         self._event_queue = event_queue or Queue()
         self._event_handlers = event_handlers or DefaultDict(list)
         self._processor = Thread(target=self._run)
+        self._log = log
 
     def start(self):
         """
@@ -34,6 +37,12 @@ class EventEngine(object):
         """
         self._active = False
         self._processor.join()
+
+    def is_active(self):
+        """
+        Whether the process is alive.
+        """
+        return self._active
 
     def publish(self, event_type, **kwargs):
         """
@@ -88,6 +97,12 @@ class EventEngine(object):
                 self._process(event)
             except Empty:
                 pass
+            except HandleDataException:
+                self._active = False
+            except:
+                import traceback
+                self._log.error(u'执行策略失败 %s' % str(traceback.format_exc()))
+                self._active = False
 
     def _process(self, event):
         """

@@ -4,7 +4,6 @@
 # **********************************************************************************#
 from copy import copy
 from datetime import datetime
-from utils.datetime_utils import get_direct_trading_day
 from . trading_base import *
 from . event.event_base import EventType
 from . gateway.trading_gateway import TradingGateway
@@ -21,7 +20,8 @@ class TradingAgent(TradingGateway):
                  strategy=None, data_portal=None,
                  context=None, account_manager=None,
                  market_roller=None, trading_scheduler=None,
-                 event_engine=None, log=None, debug=False):
+                 event_engine=None, ctp_gateway=None,
+                 log=None, debug=False):
         super(TradingAgent, self).__init__()
         assert isinstance(sim_params, SimulationParameters)
         self.clock = clock
@@ -33,6 +33,7 @@ class TradingAgent(TradingGateway):
         self.market_roller = market_roller
         self.trading_scheduler = trading_scheduler
         self.event_engine = event_engine
+        self.ctp_gateway = ctp_gateway
         self.log = log
         self.debug = debug
         self.trading_days_length = None
@@ -92,8 +93,11 @@ class TradingAgent(TradingGateway):
         """
         Prepare initialize
         """
-        self.trading_scheduler.prepare(**kwargs)
+        self.trading_scheduler.prepare_initialize(**kwargs)
         self.trading_days_length = len(self.trading_scheduler.trading_days())
+        self.register_handlers(self.event_engine)
+        full_universe = self.data_portal.universe_service.full_universe
+        self.ctp_gateway.prepare_initialize(universe=full_universe)
 
     def rolling_load_daily_data(self, trading_days=None):
         """
@@ -215,7 +219,3 @@ class TradingAgent(TradingGateway):
             current_minute = datetime.now().strftime('%H:%M')
             if self.clock.current_minute != current_minute:
                 self.clock.update_time(minute=current_minute)
-        # change date to clearing date.
-        if self.clock.current_minute > '16:00' and self.clock.current_date <= datetime.today():
-            next_trading_date = get_direct_trading_day(self.clock.current_date, step=1)
-            self.clock.update_time(previous_date=self.clock.current_date, current_date=next_trading_date)

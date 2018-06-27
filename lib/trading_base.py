@@ -83,7 +83,6 @@ def strategy_from_code(code, log_obj=None):
     执行策略代码文本，提取其中策略信息（sim_params, strategy, 新增用户自定义变量和引用包）
     Args:
         code: 策略代码
-        need_strategy_parse(boolean): if strategy parse is needed
         log_obj(obj): log obj by user
 
     Returns:

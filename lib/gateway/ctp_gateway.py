@@ -48,3 +48,23 @@ class CTPGateway(object):
         ctp_config['trader_gateway'] = trader_gateway
         ctp_config['event_engine'] = event_engine
         return cls(**ctp_config)
+
+    def prepare_initialize(self, universe=None):
+        """
+        Prepare market gateway and trader gateway.
+
+        Args:
+            universe(list): symbol list
+        """
+        self.market_gateway.connect()
+        if universe:
+            self.market_gateway.subscribe(universe)
+        self.trader_gateway.connect()
+
+    def query_information(self):
+        """
+        Query information from ctp.
+        """
+        self.trader_gateway.query_account()
+        self.trader_gateway.query_positions()
+        self.trader_gateway.query_orders()

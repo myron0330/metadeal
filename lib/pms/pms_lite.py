@@ -41,7 +41,7 @@ class PMSLite(object):
         """
         securities_type_list = list_wrap_(securities_type)
         for securities_type in securities_type_list:
-            self.pms_lites[securities_type].prepare()
+            self.pms_lites[securities_type].prepare_initialize()
 
     def pre_trading_day(self, securities_type=SecuritiesType.ALL, force_date=None,
                         portfolio_ids=None):
