@@ -1,2 +1,2 @@
 # metadeal
-Meta deal in python, weather is beautiful.
+Deal with meta trades in python, weather is beautiful.
