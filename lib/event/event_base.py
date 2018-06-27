@@ -41,10 +41,9 @@ class EventType(object):
     event_on_log = 'on_log'
     event_handle_data = 'handle_data'
 
-    event_subscribe_trade = 'subscribe_trade'
-
     event_deal_with_trade = 'deal_with_trade'
     event_deal_with_order = 'deal_with_order'
+    event_deal_with_position = 'deal_with_position'
 
     event_on_bar = 'on_bar'
     event_on_portfolio = 'on_portfolio'
@@ -59,7 +58,7 @@ class EventType(object):
         return cls.__events__
 
     @classmethod
-    def strategy_events(cls):
+    def strategy(cls):
         """
         Strategy events.
         """
@@ -75,28 +74,7 @@ class EventType(object):
         ]
 
     @classmethod
-    def pms_events(cls):
-        """
-        PMS events.
-        """
-        return [
-            cls.event_send_order,
-            cls.event_cancel_order,
-            cls.event_deal_with_trade,
-            cls.event_deal_with_order
-        ]
-
-    @classmethod
-    def subscriber_events(cls):
-        """
-        Subscriber events.
-        """
-        return [
-            cls.event_subscribe_trade,
-        ]
-
-    @classmethod
-    def trading_events(cls):
+    def trading_agent(cls):
         """
         Trading engine events.
         """
@@ -105,4 +83,15 @@ class EventType(object):
             cls.event_on_portfolio,
             cls.event_start,
             cls.event_stop
+        ]
+
+    @classmethod
+    def pms_lite(cls):
+        """
+        PMS Lite events.
+        """
+        return [
+            cls.event_deal_with_trade,
+            cls.event_deal_with_order,
+            cls.event_deal_with_position,
         ]

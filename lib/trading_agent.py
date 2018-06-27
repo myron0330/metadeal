@@ -86,7 +86,7 @@ class TradingAgent(TradingGateway):
         """
         Register handlers.
         """
-        for event in EventType.trading_events():
+        for event in EventType.trading_agent():
             event_engine.register_handlers(event, getattr(self, event))
 
     def prepare_initialize(self, **kwargs):
