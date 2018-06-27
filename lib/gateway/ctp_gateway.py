@@ -67,4 +67,3 @@ class CTPGateway(object):
         """
         self.trader_gateway.query_account()
         self.trader_gateway.query_positions()
-        self.trader_gateway.query_orders()

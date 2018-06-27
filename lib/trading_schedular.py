@@ -2,6 +2,7 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
+from datetime import datetime
 from utils.datetime_utils import *
 from utils.error_utils import Errors
 from utils.dict_utils import DefaultDict
@@ -42,7 +43,7 @@ class TradingScheduler(object):
         self._rolling_load_range_m = dict()
         self._minute_bars_loading_events = DefaultDict(list)
 
-    def prepare(self, daily_loading_rate=60, minute_loading_rate=5):
+    def prepare_initialize(self, daily_loading_rate=60, minute_loading_rate=5):
         """
         Args:
             daily_loading_rate(int): daily loading rate
