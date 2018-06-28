@@ -81,7 +81,17 @@ class PMSLite(object):
         position = FuturesPosition.from_ctp(position_response)
         for account, config in self.accounts.iteritems():
             self.position_info[account][self.clock.clearing_date][position.symbol] = position
-        print self.position_info
+
+    def deal_with_account(self, account_response):
+        """
+        Deal with account response.
+
+        Args:
+            account_response(obj): account object
+        """
+        for account, config in self.accounts.iteritems():
+            self.cash_info[account][self.clock.clearing_date] = account_response.available
+            self.portfolio_value_info[account][self.clock.clearing_date] = account_response.balance
 
     def deal_with_order(self):
         raise NotImplementedError

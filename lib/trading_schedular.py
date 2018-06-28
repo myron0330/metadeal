@@ -110,12 +110,7 @@ class TradingScheduler(object):
         Returns:
             datetime.datetime: previous date
         """
-        bt_idx = self.trading_days_bt_idx.get(date)
-        if bt_idx is not None:
-            return self.trading_days_bt[bt_idx - 1] if bt_idx > 0 else self.trading_days_for_window[-1]
-        window_idx = self.trading_days_for_window_idx.get(date)
-        if window_idx is not None:
-            return self.trading_days_for_window[window_idx - 1] if window_idx > 0 else get_previous_trading_date(date)
+        return self.calendar_service.previous_trading_day_map.get(date)
 
     def is_trigger_day(self, date):
         """

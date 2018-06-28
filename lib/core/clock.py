@@ -10,18 +10,14 @@ from utils.datetime_utils import (
     get_upcoming_trading_date, get_latest_trading_date,
     get_trading_days
 )
+from utils.decorator_utils import singleton
 
 
+@singleton
 class Clock(object):
     """
     Clock in globals
     """
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, '_instance'):
-            self = super(Clock, cls).__new__(cls)
-            cls._instance = self
-        return cls._instance
-
     def __init__(self, freq='d'):
         self.freq = freq
         self._current_date = None
@@ -88,9 +84,18 @@ class Clock(object):
         """
         Clearing date
         """
-        if self.current_minute <= '16:00' and self.is_trading_day:
+        if self.current_minute <= '20:00' and self.is_trading_day:
             return self.current_date
         return self.upcoming_trading_date
+
+    @property
+    def previous_clearing_date(self):
+        """
+        Previous clearing date.
+        """
+        if self.current_minute <= '20:00' and self.is_trading_day:
+            return self.previous_date
+        return self.latest_trading_date
 
     @property
     def latest_trading_date(self):

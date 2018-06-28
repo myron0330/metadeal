@@ -44,6 +44,7 @@ class EventType(object):
     event_deal_with_trade = 'deal_with_trade'
     event_deal_with_order = 'deal_with_order'
     event_deal_with_position = 'deal_with_position'
+    event_deal_with_account = 'deal_with_account'
 
     event_on_bar = 'on_bar'
     event_on_portfolio = 'on_portfolio'
@@ -94,4 +95,5 @@ class EventType(object):
             cls.event_deal_with_trade,
             cls.event_deal_with_order,
             cls.event_deal_with_position,
+            cls.event_deal_with_account
         ]

@@ -356,6 +356,10 @@ class CtpTraderGateway(TdApi):
             last(unused): unused
         """
         response = AccountResponse.from_ctp(data)
+        parameters = {
+            'account_response': response,
+        }
+        self.event_engine.publish(EventType.event_deal_with_account, **parameters)
         logger.info('[onRspQryTradingAccount] {}'.format(response))
 
     def onRspSettlementInfoConfirm(self, data, error, n, last):

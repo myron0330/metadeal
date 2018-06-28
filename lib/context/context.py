@@ -5,7 +5,7 @@
 # **********************************************************************************#
 import re
 from collections import deque
-from . clock import Clock
+from .. core.clock import Clock
 from .. data.asset_service import AssetType
 
 
