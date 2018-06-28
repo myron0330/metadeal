@@ -12,7 +12,7 @@ freq = 'm'
 refresh_rate = 1                           # 执行handle_data的时间间隔
 
 accounts = {
-    'account1': AccountConfig(account_type='futures'),
+    'fantasy_account': AccountConfig(account_type='futures'),
 }
 
 def initialize(context):                   # 初始化策略运行环境

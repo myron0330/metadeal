@@ -393,7 +393,7 @@ class CtpTraderGateway(TdApi):
         """
         response = PositionResponse.from_ctp(data)
         parameters = {
-            'position': response,
+            'position_response': response,
         }
         self.event_engine.publish(EventType.event_deal_with_position, **parameters)
         logger.info('[onRspQryInvestorPosition] {}'.format(response))

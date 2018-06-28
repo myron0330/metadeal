@@ -156,12 +156,12 @@ class LongShortPosition(object):
         'value',
         'profit',
         'today_profit',
-        'today_offset_profit'
+        'offset_profit'
     ]
 
-    def __init__(self, symbol, price=0., long_amount=0, short_amount=0, long_margin=0, short_margin=0,
-                 long_cost=0, short_cost=0, value=0, profit=0, today_profit=0,
-                 today_offset_profit=0):
+    def __init__(self, symbol=0, price=0., long_amount=0, short_amount=0, long_margin=0,
+                 short_margin=0, long_cost=0, short_cost=0, value=0, profit=0, today_profit=0,
+                 offset_profit=0):
         self.symbol = symbol
         self.price = price
         self.long_amount = long_amount
@@ -173,7 +173,7 @@ class LongShortPosition(object):
         self.value = value
         self.profit = profit
         self.today_profit = today_profit
-        self.today_offset_profit = today_offset_profit
+        self.offset_profit = offset_profit
 
     def evaluate(self, reference_price, multiplier=1., margin_rate=1.):
         """
@@ -236,7 +236,7 @@ class LongShortPosition(object):
             'value': self.value,
             'profit': self.profit,
             'today_profit': self.today_profit,
-            'today_offset_profit': self.today_offset_profit
+            'offset_profit': self.offset_profit
         }
         return redis_item
 
@@ -256,16 +256,16 @@ class LongShortPosition(object):
             'value': self.value,
             'profit': self.profit,
             'today_profit': self.today_profit,
-            'today_offset_profit': self.today_offset_profit
+            'offset_profit': self.offset_profit
         }
 
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
 
     def __repr__(self):
-        return "LongShortPosition(symbol: {}, price: {}, long_amount: {}, short_amount: {}, " \
+        return "{}(symbol: {}, price: {}, long_amount: {}, short_amount: {}, " \
                "long_margin: {}, short_margin: {}," \
-               "long_cost: {}, short_cost: {}, profit: {})".format(self.symbol, self.price, self.long_amount,
+               "long_cost: {}, short_cost: {}, profit: {})".format(self.__class__.__name__, self.symbol, self.price, self.long_amount,
                                                                    self.short_amount, self.long_margin,
                                                                    self.short_margin, self.long_cost,
                                                                    self.short_cost, self.profit)
@@ -273,9 +273,10 @@ class LongShortPosition(object):
 
 class FuturesPosition(LongShortPosition):
 
-    def __init__(self, symbol, price, long_amount=0, short_amount=0, long_margin=0, short_margin=0,
+    def __init__(self, symbol=None, price=None, long_amount=0, short_amount=0, long_margin=0, short_margin=0,
                  long_cost=0, short_cost=0, value=0, profit=0, today_long_open=0, today_short_open=0,
-                 today_profit=0, today_offset_profit=0):
+                 today_profit=0, offset_profit=0, pre_settlement_price=0, settlement_price=0,
+                 margin_rate=0):
         super(FuturesPosition, self).__init__(symbol, price=price, long_amount=long_amount,
                                               short_amount=short_amount,
                                               long_margin=long_margin,
@@ -285,9 +286,12 @@ class FuturesPosition(LongShortPosition):
                                               value=value,
                                               profit=profit,
                                               today_profit=today_profit,
-                                              today_offset_profit=today_offset_profit)
+                                              offset_profit=offset_profit)
         self.today_long_open = today_long_open
         self.today_short_open = today_short_open
+        self.pre_settlement_price = pre_settlement_price
+        self.settlement_price = settlement_price
+        self.margin_rate = margin_rate
 
     def calc_close_pnl(self, trade, multiplier):
         """
@@ -328,6 +332,32 @@ class FuturesPosition(LongShortPosition):
         position = cls(**query_data)
         return position
 
+    @classmethod
+    def from_ctp(cls, position_response):
+        """
+        Receive from ctp response.
+
+        Args:
+            position_response(obj): position response
+        """
+        item = {
+            'symbol': position_response.instrument_id,
+            'price': position_response.settlement_price,
+            'profit': position_response.position_profit,
+            'pre_settlement_price': position_response.pre_settlement_price,
+            'settlement_price': position_response.settlement_price,
+            'margin_rate': position_response.margin_rate_by_money,
+        }
+        if position_response.position_direction == '2':
+            item['long_amount'] = position_response.position
+            item['long_margin'] = position_response.use_margin
+            item['long_cost'] = position_response.use_margin / position_response.position
+        elif position_response.position_direction == '3':
+            item['short_amount'] = position_response.position
+            item['short_margin'] = position_response.use_margin
+            item['short_cost'] = position_response.use_margin / position_response.position
+        return cls(**item)
+
     def to_database_item(self):
         """
         To redis item
@@ -346,7 +376,7 @@ class FuturesPosition(LongShortPosition):
             'today_long_open': self.today_long_open,
             'today_short_open': self.today_short_open,
             'today_profit': self.today_profit,
-            'today_offset_profit': self.today_offset_profit
+            'offset_profit': self.offset_profit
         }
         return redis_item
 

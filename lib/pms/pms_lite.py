@@ -11,6 +11,7 @@ from .. configs import logger
 from .. core.enums import SecuritiesType
 from .. core.schema import SchemaType
 from .. database.database_api import query_from_
+from .. trade.position import FuturesPosition
 
 
 class PMSLiteMcs(type):
@@ -70,11 +71,17 @@ class PMSLite(object):
         self.market_roller = market_roller
         self.settlement_info = settlement_info or DefaultDict(DefaultDict(list))
 
-    @staticmethod
-    def deal_with_position(position):
-        print '#' * 100
-        print position
-        print '#' * 100
+    def deal_with_position(self, position_response):
+        """
+        Deal with position response.
+
+        Args:
+            position_response(obj): position response object
+        """
+        position = FuturesPosition.from_ctp(position_response)
+        for account, config in self.accounts.iteritems():
+            self.position_info[account][self.clock.clearing_date][position.symbol] = position
+        print self.position_info
 
     def deal_with_order(self):
         raise NotImplementedError

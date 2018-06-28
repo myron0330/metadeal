@@ -24,7 +24,10 @@ from . trading_base import (
     parse_sim_params
 )
 from . trading_agent import TradingAgent
-from . configs import ctp_config
+from . configs import (
+    ctp_config,
+    logger
+)
 from . const import RETURN_CODE_EXIT_ERROR
 
 
@@ -40,12 +43,13 @@ def trading(strategy_code, config=None, debug=False, log_obj=None, **kwargs):
         **kwargs: key-value parameters
     """
     config = config or dict()
+    log_obj = log_obj or logger
     strategy, local_variables = strategy_from_code(strategy_code, log_obj=log_obj)
     sim_params = parse_sim_params(config, local_variables)
     clock = Clock(sim_params.freq)
     data_portal = DataPortal()
     data_portal.batch_load_data(sim_params)
-    event_engine = EventEngine(log_obj)
+    event_engine = EventEngine(log=log_obj)
     trading_scheduler = TradingScheduler(start=sim_params.start, end=sim_params.end,
                                          freq=sim_params.freq,
                                          refresh_rate_d=sim_params.refresh_rate,
@@ -64,10 +68,10 @@ def trading(strategy_code, config=None, debug=False, log_obj=None, **kwargs):
     ctp_gateway = CTPGateway.from_config(ctp_config, event_engine=event_engine)
     pms_gateway = PMSGateway.from_config(clock, sim_params, data_portal,
                                          ctp_gateway=ctp_gateway)
-    pms_lite = PMSLite()
     account_manager = AccountManager.from_config(clock, sim_params, data_portal,
                                                  event_engine=event_engine,
                                                  pms_gateway=pms_gateway)
+    pms_lite = PMSLite(clock=clock, accounts=account_manager.registered_accounts, data_portal=data_portal)
     context = Context(clock, sim_params, strategy,
                       market_service=data_portal.market_service,
                       universe_service=data_portal.universe_service,
