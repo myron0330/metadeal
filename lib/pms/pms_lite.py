@@ -72,7 +72,9 @@ class PMSLite(object):
 
     @staticmethod
     def deal_with_position(position):
+        print '#' * 100
         print position
+        print '#' * 100
 
     def deal_with_order(self):
         raise NotImplementedError

@@ -31,9 +31,12 @@ class Position(object):
         'profit',
         'value',
         'available_amount',
-        'dividends']
+        'dividends',
+        'today_profit',
+        'today_offset_profit']
 
-    def __init__(self, symbol, amount, cost, profit=0.0, value=None, available_amount=0):
+    def __init__(self, symbol, amount, cost, profit=0.0, value=None,
+                 available_amount=0, today_profit=0, today_offset_profit=0):
         self.symbol = symbol
         self.amount = amount
         self.cost = cost
@@ -41,10 +44,14 @@ class Position(object):
         self.value = value
         self.available_amount = available_amount
         self.dividends = None
+        self.today_profit = today_profit
+        self.today_offset_profit = today_offset_profit
 
-    def evaluate(self, price):
+    def evaluate(self, price, pre_close_price=0):
         self.value = price * self.amount
         self.profit = (price - self.cost) * self.amount
+        self.today_profit = \
+            round((price - pre_close_price) * self.amount + self.today_offset_profit, 2)
 
     @staticmethod
     def from_dict(position_dict, position_cost_dict):
@@ -62,7 +69,9 @@ class Position(object):
             'profit': self.profit,
             'value': self.value,
             'available_amount': self.available_amount,
-            'dividends': self.dividends
+            'dividends': self.dividends,
+            'today_profit': self.today_profit,
+            'today_offset_profit': self.today_offset_profit
         }
 
     def __getitem__(self, key, default=None):
@@ -81,10 +90,12 @@ class MetaPosition(Position):
     """
 
     def __init__(self, symbol, amount, cost, profit=0.0, value=None, available_amount=0,
-                 dividends=None, total_cost=None):
+                 dividends=None, total_cost=None, today_profit=0, today_offset_profit=0):
         super(MetaPosition, self).__init__(symbol, amount, cost,
                                            profit=profit, value=value,
-                                           available_amount=available_amount)
+                                           available_amount=available_amount,
+                                           today_profit=today_profit,
+                                           today_offset_profit=today_offset_profit)
         self.total_cost = total_cost or self.cost * self.amount
         self.dividends = dividends
 
@@ -143,11 +154,14 @@ class LongShortPosition(object):
         'long_margin',
         'short_margin',
         'value',
-        'profit'
+        'profit',
+        'today_profit',
+        'today_offset_profit'
     ]
 
     def __init__(self, symbol, price=0., long_amount=0, short_amount=0, long_margin=0, short_margin=0,
-                 long_cost=0, short_cost=0, value=0, profit=0):
+                 long_cost=0, short_cost=0, value=0, profit=0, today_profit=0,
+                 today_offset_profit=0):
         self.symbol = symbol
         self.price = price
         self.long_amount = long_amount
@@ -158,6 +172,8 @@ class LongShortPosition(object):
         self.short_cost = short_cost
         self.value = value
         self.profit = profit
+        self.today_profit = today_profit
+        self.today_offset_profit = today_offset_profit
 
     def evaluate(self, reference_price, multiplier=1., margin_rate=1.):
         """
@@ -219,6 +235,8 @@ class LongShortPosition(object):
             'short_cost': self.short_cost,
             'value': self.value,
             'profit': self.profit,
+            'today_profit': self.today_profit,
+            'today_offset_profit': self.today_offset_profit
         }
         return redis_item
 
@@ -237,6 +255,8 @@ class LongShortPosition(object):
             'short_margin': self.short_margin,
             'value': self.value,
             'profit': self.profit,
+            'today_profit': self.today_profit,
+            'today_offset_profit': self.today_offset_profit
         }
 
     def get(self, key, default=None):
@@ -254,12 +274,20 @@ class LongShortPosition(object):
 class FuturesPosition(LongShortPosition):
 
     def __init__(self, symbol, price, long_amount=0, short_amount=0, long_margin=0, short_margin=0,
-                 long_cost=0, short_cost=0, value=0, profit=0, today_long_open=0, today_short_open=0, today_profit=0):
-        super(FuturesPosition, self).__init__(symbol, price, long_amount, short_amount, long_margin, short_margin,
-                                              long_cost, short_cost, value, profit)
+                 long_cost=0, short_cost=0, value=0, profit=0, today_long_open=0, today_short_open=0,
+                 today_profit=0, today_offset_profit=0):
+        super(FuturesPosition, self).__init__(symbol, price=price, long_amount=long_amount,
+                                              short_amount=short_amount,
+                                              long_margin=long_margin,
+                                              short_margin=short_margin,
+                                              long_cost=long_cost,
+                                              short_cost=short_cost,
+                                              value=value,
+                                              profit=profit,
+                                              today_profit=today_profit,
+                                              today_offset_profit=today_offset_profit)
         self.today_long_open = today_long_open
         self.today_short_open = today_short_open
-        self.today_profit = today_profit
 
     def calc_close_pnl(self, trade, multiplier):
         """
@@ -317,7 +345,8 @@ class FuturesPosition(LongShortPosition):
             'profit': self.profit,
             'today_long_open': self.today_long_open,
             'today_short_open': self.today_short_open,
-            'today_profit': self.today_profit
+            'today_profit': self.today_profit,
+            'today_offset_profit': self.today_offset_profit
         }
         return redis_item
 
