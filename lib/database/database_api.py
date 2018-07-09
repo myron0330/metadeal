@@ -41,6 +41,7 @@ FUTURES_MINUTE_FIELDS = ['tradeDate', 'clearingDate', 'barTime', 'openPrice', 'h
                          'closePrice', 'volume', 'tradeTime', 'turnoverVol', 'turnoverValue', 'openInterest']
 client = Client()
 client.init('602bada78f4eb803470a5b8754eb956da631fc072e116deb39b7c85b94d070dc')
+# client.init('12add2cfd90efc05ad9bb470362da2f6559f4c3b38839be9a72668bef4c7aad8')
 
 
 def normalize_date(date):
