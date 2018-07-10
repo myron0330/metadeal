@@ -9,18 +9,6 @@ from .. configs import logger
 from .. database.database_api import load_futures_rt_minute_data
 
 
-class MarketType(object):
-
-    CTP_TICK = 'CTP_TICK'
-    CTP_ORDER_BOOK = 'CTP_ORDER_BOOK'
-
-
-market_type_map = {
-    'CTP_TICK': (lambda x: x),
-    'CTP_ORDER_BOOK': (lambda x: x)
-}
-
-
 def _get_minute_price_info(universe):
     """
     Get the latest info of stocks.
@@ -32,6 +20,10 @@ def _get_minute_price_info(universe):
     info = dict()
     for symbol, minute_bar_list in futures_rt_minute_data.iteritems():
         if minute_bar_list:
+            item = minute_bar_list[-1]
+            item.update({
+                'secID': symbol
+            })
             info[symbol] = minute_bar_list[-1]
     return info
 
@@ -45,24 +37,6 @@ class MarketQuote(object):
         self.tick_collection = tick_collection
         self.bar_collection = bar_collection or dict()
         self._bar_version = -1
-
-    @classmethod
-    def fetch_data(cls, market_type):
-        """
-        Fetch data base on a specific market type
-
-        Args:
-            market_type(string): market type string
-        """
-        market_quote = market_type_map[market_type]()
-        for data in market_quote.fetch_data():
-            yield data
-
-    def bar_version_next(self):
-        """
-        Bar version next.
-        """
-        return (self._bar_version + 1) % 2
 
     def fetch_data_from_database_api(self):
         """
@@ -88,9 +62,15 @@ class MarketQuote(object):
                     logger.error('Fetch failed: %s' % (traceback.format_exc()))
             time.sleep(5)
 
+    def _bar_version_next(self):
+        """
+        Bar version next.
+        """
+        return (self._bar_version + 1) % 2
+
     def _refresh_future_data(self):
         """
         Refresh future data
         """
-        self.bar_collection[self.bar_version_next()] = _get_minute_price_info(self.universe)
-        self._bar_version = self.bar_version_next()
+        self.bar_collection[self._bar_version_next()] = _get_minute_price_info(self.universe)
+        self._bar_version = self._bar_version_next()
