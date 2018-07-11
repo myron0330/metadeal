@@ -18,6 +18,6 @@ class TestMarketQuote(TestCase):
         Test fetch from api.
         """
         self.market_quote.universe = ['RB1810', 'RM809']
-        for data in self.market_quote.fetch_data_from_database_api():
+        for data in self.market_quote.publish_bar_data_section():
             print data
         pass

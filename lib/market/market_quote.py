@@ -4,6 +4,7 @@
 # **********************************************************************************#
 import time
 from datetime import datetime
+from utils.dict_utils import CompositeDict
 from utils.decorator_utils import singleton
 from .. configs import logger
 from .. database.database_api import load_futures_rt_minute_data
@@ -31,10 +32,9 @@ def _get_minute_price_info(universe):
 @singleton
 class MarketQuote(object):
 
-    def __init__(self, clock=None, universe=None, tick_collection=None, bar_collection=None):
+    def __init__(self, clock=None, universe=None, bar_collection=None):
         self.clock = clock
         self.universe = universe
-        self.tick_collection = tick_collection
         self.bar_collection = bar_collection or dict()
         self._bar_version = -1
 
@@ -51,7 +51,7 @@ class MarketQuote(object):
                     second = datetime.now().second
                     if second < 10:
                         time.sleep(10 - second)
-                    self._refresh_future_data()
+                    self._refresh_bar_collection()
                     cur_info = self.bar_collection[self._bar_version]
                     for future in self.universe:
                         if future in cur_info:
@@ -62,15 +62,42 @@ class MarketQuote(object):
                     logger.error('Fetch failed: %s' % (traceback.format_exc()))
             time.sleep(5)
 
+    def publish_bar_data_section(self):
+        """
+        Publish the latest surface bar data.
+        """
+        last_minute = None
+        while True:
+            current_minute = self.clock.current_minute
+            if last_minute != current_minute:
+                last_minute = current_minute
+                try:
+                    second = datetime.now().second
+                    if second < 2:
+                        time.sleep(2 - second)
+                    self._refresh_bar_collection()
+                    current_info = self.bar_collection[self._bar_version]
+
+                    response = CompositeDict()
+                    for symbol in self.universe:
+                        if symbol in current_info and current_info[symbol]['barTime'] == last_minute:
+                            response[last_minute][symbol] = current_info[symbol]
+                    if response:
+                        yield response
+                except:
+                    import traceback
+                    logger.error('publish bar data failed: %s' % (traceback.format_exc()))
+            time.sleep(5)
+
     def _bar_version_next(self):
         """
         Bar version next.
         """
         return (self._bar_version + 1) % 2
 
-    def _refresh_future_data(self):
+    def _refresh_bar_collection(self):
         """
-        Refresh future data
+        Refresh bar collection.
         """
         self.bar_collection[self._bar_version_next()] = _get_minute_price_info(self.universe)
         self._bar_version = self._bar_version_next()
