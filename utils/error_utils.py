@@ -22,7 +22,7 @@ def take_care_of_exception(func):
     def _decorator(obj, *args, **kwargs):
         try:
             response = func(obj, *args, **kwargs)
-        except tuple(Errors.error_types()), error_code:
+        except tuple(Errors.error_types()) as error_code:
             _logging_exception()
             response = error_code.args[0]
         except:

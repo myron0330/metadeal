@@ -10,21 +10,21 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from api_client import Client
-from lib.const import (
-    BASE_FUTURES_PATTERN,
-    CONTINUOUS_FUTURES_PATTERN,
-    MULTI_FREQ_PATTERN
-)
-from mongodb_api import (
+from functools import reduce
+from . api_client import Client
+from . mongodb_api import (
     query_from_mongodb,
     dump_schema_to_mongodb
 )
-from redis_api import (
+from . redis_api import (
     query_from_redis,
     dump_schema_to_redis,
     delete_keys_redis,
     delete_items_in_redis
+)
+from .. const import (
+    CONTINUOUS_FUTURES_PATTERN,
+    MULTI_FREQ_PATTERN
 )
 
 
@@ -88,7 +88,7 @@ def get_trading_days(start, end):
     if code != 200:
         raise Exception
     data = json.loads(data)['data']
-    return map(lambda x: normalize_date(x['calendarDate']), filter(lambda x: x['isOpen'] == 1, data))
+    return list(map(lambda x: normalize_date(x['calendarDate']), filter(lambda x: x['isOpen'] == 1, data)))
 
 
 def get_direct_trading_day(date, step, forward):
@@ -114,122 +114,7 @@ def get_direct_trading_day(date, step, forward):
     return target_trading_days[target_index]
 
 
-def get_data_cube(symbols, field, start, end=None, freq='1d'):
-    """
-    Get data cube based on DataAPI.
-
-    Args:
-        symbols(list or string): ordinary and artificial future contracts.
-        field(list or string): attribute fields.
-        start(datetime.datetime or string): start date
-        end(datetime.datetime or string): end date
-        freq(string): frequency
-        style(string): data style, ast/sat/tas.
-                        a: attribute, s: symbol, t: time
-        adj(string): 'pre' represent pre_adj
-        **kwargs: kwargs arguments
-
-    Returns:
-        pandas.Panel: pandas panel.
-    """
-    market_daily_fields_set = set(FUTURES_DAILY_FIELDS)
-    market_minute_fields_set = set(FUTURES_MINUTE_FIELDS)
-
-    def _format_array_of_string(param, param_name):
-        if isinstance(param, basestring):
-            if ',' in param:
-                param = param.split(',')
-            elif ';' in param:
-                param = param.split(';')
-            else:
-                param = [param]
-        elif isinstance(param, list):
-            for item in param:
-                if not isinstance(item, basestring):
-                    print ("Parameters %s only support string or list of string inputs." % param_name)
-                    return list()
-        return [item.strip() for item in param if isinstance(item, basestring)]
-
-    symbols = _format_array_of_string(symbols, "symbol")
-    if not symbols:
-        return
-
-    field = _format_array_of_string(field, "field")
-    if not field:
-        return
-
-    if isinstance(freq, basestring):
-        if freq not in ['1d', '1m', 'd', 'm', '5m', '15m', '30m', '60m']:
-            print ("Only support '1d','1m','5m', '15m', '30m', '60m'")
-            return
-    else:
-        print ("Param 'freq' only support string inputs.")
-
-    if adj is not None and adj != 'pre':
-        print (u"Only support 'pre' input of 'adj' parameter for now")
-
-    start_date = normalize_date(start)
-    if start_date is None:
-        return
-
-    base_futures = [x for x in symbols if BASE_FUTURES_PATTERN.match(x)]
-    continuous_futures = [x for x in symbols if CONTINUOUS_FUTURES_PATTERN.match(x)]
-
-    futures = list(set(base_futures) | set(continuous_futures))
-
-    if freq in ['1m', '5m', '15m', '30m', '60m', 'm']:
-        start_date = max(start_date, datetime(2010, 1, 1))
-
-    mkt_daily_fields = set(field) & market_daily_fields_set
-    mkt_minute_fields = (set(field) & market_minute_fields_set)
-    mkt_fields = mkt_daily_fields | mkt_minute_fields
-
-    fs_fields = list(set(field) & set())
-    rest = set(field) - set(mkt_fields) - set(fs_fields)
-    if rest:
-        print ("Invalid fields: %s" % list(rest))
-
-    end_date = normalize_date(end) if end is not None else get_end_date()
-    if end_date is None:
-        return
-    if end_date < start_date:
-        print ("start date is earlier than end date.")
-        return
-    trading_days = get_trading_days(start_date, end_date)
-    if len(trading_days) == 0:
-        print ("Date period among start:%s, end:%s contains no trading days." % (start, end))
-        return
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
-
-    filtered_futures = list()
-    if futures:
-        futures_info_frame = load_futures_base_info(symbols)
-        futures_info_frame.index = futures_info_frame.symbol
-        futures_info_dict = futures_info_frame[['listDate', 'lastTradeDate']].T.to_dict()
-        for future in futures:
-            if future in futures_info_dict:
-                list_date, last_trade_date = \
-                    futures_info_dict[future]['listDate'], futures_info_dict[future]['lastTradeDate']
-                if start_date_str < last_trade_date and end_date_str > list_date:
-                    filtered_futures.append(future)
-            else:
-                filtered_futures.append(future)
-        if len(set(futures) - set(filtered_futures)) > 0:
-            print ("%s are unreachable in the response because of the list periods." %
-                   list(set(futures) - set(filtered_futures)))
-
-    invalid_symbol = list(set(symbols) - set(futures))
-    if invalid_symbol:
-        print ("can not recognize symbol parameters %s， please check." % invalid_symbol)
-
-    symbols = list(set(filtered_futures))
-    if len(symbols) == 0:
-        return pd.Panel()
-    raise NotImplementedError
-
-
-def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIELDS, **kwargs):
+def load_futures_daily_data(universe, trading_days, attributes=None):
     """
     Load futures daily data.
 
@@ -245,11 +130,12 @@ def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIE
     Returns:
         dict: key-->attribute, value-->DataFrame
     """
-    universe = filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe)
+    universe = list(filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe))
     trading_days = sorted([trading_day.strftime("%Y%m%d") for trading_day in trading_days])
+    attributes = attributes or FUTURES_DAILY_FIELDS
     trading_day_length = len(trading_days)
     symbols_length = len(universe)
-    attributes = attributes.split() if isinstance(attributes, basestring) else list(attributes)
+    attributes = attributes.split() if isinstance(attributes, str) else list(attributes)
 
     batch_size = max(MIN_BATCH_SIZE, BATCH_DAILY_DATA_SIZE // trading_day_length)
     batches = [universe[i:min(i+batch_size, symbols_length)] for i in range(0, symbols_length, batch_size)]
@@ -301,7 +187,7 @@ def load_futures_daily_data(universe, trading_days, attributes=FUTURES_DAILY_FIE
     return data_all
 
 
-def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MINUTE_FIELDS, freq='m'):
+def load_futures_minute_data(universe=None, trading_days=None, field=None, freq='m'):
     """
     Load futures minute data concurrently.
     Available data: closePrice, highPrice, lowPrice, openPrice, turnoverVol, clearingDate, barTime, tradeDate
@@ -321,7 +207,8 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
         >> equity_data = load_minute_futures_data(universe, trading_days, ['closePrice'])
 
     """
-    universe = filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe)
+    universe = list(filter(lambda x: not CONTINUOUS_FUTURES_PATTERN.match(x), universe))
+    field = field or FUTURES_MINUTE_FIELDS
     trading_days_index = [dt.strftime("%Y-%m-%d") for dt in trading_days]
     trading_days = [dt.strftime("%Y%m%d") for dt in trading_days]
     trading_days_length = len(trading_days)
@@ -381,18 +268,18 @@ def load_futures_minute_data(universe=None, trading_days=None, field=FUTURES_MIN
 
     data_all = {}
     zero_item = []
-    zeros = [zero_item for _ in xrange(trading_days_length)]
+    zeros = [zero_item for _ in range(trading_days_length)]
     for response in sorted(responses.items(), key=lambda x: x[0]):
         _, data = response
         data_all.update(data)
     data_all = {key: pd.DataFrame.from_dict(item).set_index('clearingDate', drop=False)[field]
-                for (key, item) in data_all.iteritems()}
+                for (key, item) in data_all.items()}
     data_all = dict(pd.Panel.from_dict(data_all).swapaxes(0, 2))
-    for var, values in data_all.iteritems():
+    for var, values in data_all.items():
         for sec in set(universe) - set(data_all[var].keys()):
             values[sec] = zeros
-        for ticker, t_minute in values.iteritems():
-            values[ticker] = map(np.array, t_minute)
+        for ticker, t_minute in values.items():
+            values[ticker] = list(map(np.array, t_minute))
         data_all[var] = pd.DataFrame(values, index=trading_days_index, columns=universe)
     return data_all
 
@@ -516,7 +403,7 @@ def delete_(database, *collections):
         return delete_keys_redis(*collections)
 
 
-def delete_items_(database, schema_type, items=None, **kwargs):
+def delete_items_(database, schema_type, items=None):
     """
     Delete items in a database table or hash map
 
@@ -526,7 +413,7 @@ def delete_items_(database, schema_type, items=None, **kwargs):
         items(string or list or dict): optional, portfolio id or portfolio ids
     """
     if database in ['redis', 'all']:
-        if isinstance(items, (str, unicode)):
+        if isinstance(items, str):
             keys = [items]
         elif isinstance(items, (list, tuple, set, dict)):
             keys = list(items)
@@ -542,7 +429,6 @@ __all__ = [
     'delete_',
     'delete_items_',
     'dump_to_',
-    'get_data_cube',
     'get_direct_trading_day',
     'get_end_date',
     'get_trading_days',
