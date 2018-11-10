@@ -9,7 +9,7 @@ from . event.event_base import EventType
 from . gateway.trading_gateway import TradingGateway
 from . context.context import Context
 from . context.parameters import SimulationParameters
-from . data.asset_service import AssetType
+from . instrument.asset_service import AssetType
 
 
 class TradingAgent(TradingGateway):

@@ -5,7 +5,7 @@
 # **********************************************************************************#
 from utils.datetime_utils import normalize_date
 from utils.error_utils import Errors
-from .. data.universe_service import Universe
+from .. instrument.universe_service import Universe
 from .. trade.cost import Commission, Slippage
 from .. const import DEFAULT_KEYWORDS
 

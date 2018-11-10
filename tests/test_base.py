@@ -9,7 +9,7 @@ from lib.trading import trading_orders_minutely, trading_orders_daily
 from lib.trading_base import *
 from lib.event import EventEngine, EventType
 from lib.backtest import backtest
-from lib.data.data_portal import DataPortal
+from lib.instrument.data_portal import DataPortal
 from lib.context.parameters import SimulationParameters
 from lib.market.market_roller import MarketRoller
 from utils.datetime_utils import (

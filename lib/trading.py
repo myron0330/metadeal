@@ -7,7 +7,7 @@ import time
 from . core.clock import Clock
 from . context.context import Context
 from . account.account import AccountManager
-from . data.data_portal import DataPortal
+from . instrument.data_portal import DataPortal
 from . event.event_engine import (
     EventEngine,
     EventType

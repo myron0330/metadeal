@@ -4,7 +4,7 @@
 # **********************************************************************************#
 from utils.error_utils import Errors
 from . enums import SchemaType
-from .. database.mongodb_base import *
+from .. data.mongodb_base import *
 
 
 class MongodbCollections(object):

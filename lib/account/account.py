@@ -9,7 +9,7 @@ from . import (
     FuturesAccount
 )
 from .. core.enums import SecuritiesType
-from .. data import (
+from .. instrument import (
     AssetType,
     get_future_contract_object
 )

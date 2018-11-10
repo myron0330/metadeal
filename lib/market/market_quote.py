@@ -7,7 +7,7 @@ from datetime import datetime
 from utils.dict_utils import CompositeDict
 from utils.decorator_utils import singleton
 from .. configs import logger
-from .. database.database_api import load_futures_rt_minute_data
+from .. data.database_api import load_futures_rt_minute_data
 
 
 def _get_minute_price_info(universe):

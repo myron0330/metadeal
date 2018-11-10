@@ -6,7 +6,7 @@
 import re
 from collections import deque
 from .. core.clock import Clock
-from .. data.asset_service import AssetType
+from .. instrument.asset_service import AssetType
 
 
 class Context(object):

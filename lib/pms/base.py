@@ -12,7 +12,7 @@ from .. core.enums import (
     SchemaType
 )
 from .. core.collection import MongodbCollections
-from .. database.database_api import (
+from .. data.database_api import (
     query_from_,
     dump_to_,
     delete_,

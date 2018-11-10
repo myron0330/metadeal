@@ -8,7 +8,7 @@ from . risk_metrics import *
 from .. utils.datetime_utils import get_trading_days
 from .. universe.universe import UniverseService
 from .. utils.pandas_utils import smart_concat
-from .. data.asset_service import AssetType
+from .. instrument.asset_service import AssetType
 from .. account import StockAccount, FuturesAccount, OTCFundAccount, IndexAccount
 
 
