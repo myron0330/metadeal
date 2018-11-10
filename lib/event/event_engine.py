@@ -4,8 +4,8 @@
 # **********************************************************************************#
 from Queue import Queue, Empty
 from threading import Thread
-from utils.error_utils import HandleDataException
-from utils.dict_utils import DefaultDict
+from utils.error import HandleDataException
+from utils.dict import DefaultDict
 from . event_base import Event, EventType
 
 

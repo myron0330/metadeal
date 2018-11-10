@@ -4,7 +4,7 @@
 # **********************************************************************************#
 import time
 from uuid import uuid1
-from utils.error_utils import Errors
+from utils.error import Errors
 from . objects import ValueObject
 from . enums import (
     SecuritiesType,

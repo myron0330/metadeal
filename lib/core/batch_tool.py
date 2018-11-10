@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: Batch tools
 # **********************************************************************************#
-from utils.error_utils import Errors
+from utils.error import Errors
 from . enums import SchemaType
 from . collection import MongodbCollections
 from .. data.mongodb_base import BatchTool

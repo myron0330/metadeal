@@ -4,8 +4,8 @@
 # **********************************************************************************#
 import time
 from datetime import datetime
-from utils.dict_utils import CompositeDict
-from utils.decorator_utils import singleton
+from utils.dict import CompositeDict
+from utils.decorator import singleton
 from .. configs import logger
 from .. data.database_api import load_futures_rt_minute_data
 

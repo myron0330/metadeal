@@ -4,7 +4,7 @@
 #   Author: Myron
 # **********************************************************************************#
 from copy import copy
-from utils.error_utils import Errors
+from utils.error import Errors
 from . import (
     FuturesAccount
 )

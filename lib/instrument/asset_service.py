@@ -4,8 +4,8 @@ import DataAPI
 import logging
 import datetime
 import pandas as pd
-from utils.error_utils import Errors
-from utils.datetime_utils import (
+from utils.error import Errors
+from utils.datetime import (
     normalize_date,
     get_previous_trading_date,
     get_current_date)

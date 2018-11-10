@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File:
 # **********************************************************************************#
-from utils.error_utils import Errors
+from utils.error import Errors
 from . enums import SchemaType
 from .. data.mongodb_base import *
 

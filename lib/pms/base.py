@@ -3,8 +3,8 @@
 #     File:
 # **********************************************************************************#
 import numpy as np
-from utils.dict_utils import DefaultDict
-from utils.error_utils import Errors
+from utils.dict import DefaultDict
+from utils.error import Errors
 from .. core.schema import *
 from .. core.clock import clock
 from .. core.enums import (

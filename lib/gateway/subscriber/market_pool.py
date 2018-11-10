@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: Data pools.
 # **********************************************************************************#
-from utils.decorator_utils import singleton
+from utils.decorator import singleton
 
 
 class MarketPoolMcs(type):

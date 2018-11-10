@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-from utils.error_utils import Errors
+from utils.error import Errors
 from .. core.enums import SecuritiesType
 
 

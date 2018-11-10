@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: Trader.
 # **********************************************************************************#
-from utils.decorator_utils import singleton
+from utils.decorator import singleton
 from . configs import *
 
 uwsgi_tag = False

@@ -4,7 +4,7 @@
 # **********************************************************************************#
 import pandas as pd
 from collections import OrderedDict
-from utils.error_utils import Errors
+from utils.error import Errors
 from .. core.objects import ValueObject
 from .. core.enums import SecuritiesType
 

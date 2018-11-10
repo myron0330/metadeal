@@ -7,8 +7,8 @@ import bisect
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from utils.error_utils import Errors
-from utils.datetime_utils import get_previous_trading_date
+from utils.error import Errors
+from utils.datetime import get_previous_trading_date
 from .. const import (
     BASE_FUTURES_PATTERN,
     CONTINUOUS_FUTURES_PATTERN,

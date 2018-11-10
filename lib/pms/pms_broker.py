@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: PMS broker: broker pms_agent for brokers in PMS.
 # **********************************************************************************#
-from utils.error_utils import Errors
+from utils.error import Errors
 from . base import list_wrap_
 from . broker.futures_broker import FuturesBroker
 from . broker.security_broker import SecurityBroker

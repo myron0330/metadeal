@@ -12,7 +12,7 @@ from lib.backtest import backtest
 from lib.instrument.data_portal import DataPortal
 from lib.context.parameters import SimulationParameters
 from lib.market.market_roller import MarketRoller
-from utils.datetime_utils import (
+from utils.datetime import (
     normalize_date,
     get_trading_days,
     get_direct_trading_day_list)

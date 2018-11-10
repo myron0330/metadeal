@@ -2,9 +2,9 @@
 # **********************************************************************************#
 #     File: PMS broker: broker pms_agent for brokers in PMS.
 # **********************************************************************************#
-from utils.dict_utils import DefaultDict
-from utils.error_utils import Errors
-from utils.decorator_utils import singleton
+from utils.dict import DefaultDict
+from utils.error import Errors
+from utils.decorator import singleton
 from . base import *
 from . pms_agent.futures_pms_agent import FuturesPMSAgent
 from .. configs import logger

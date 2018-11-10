@@ -3,7 +3,7 @@
 #     File: FuturesAccount FILE
 #   Author: Myron
 # **********************************************************************************#
-from utils.error_utils import Errors
+from utils.error import Errors
 from . base_account import BaseAccount
 from .. trade import (
     Order, OrderState,

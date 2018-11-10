@@ -3,9 +3,9 @@
 #     File:
 # **********************************************************************************#
 from datetime import datetime
-from utils.datetime_utils import *
-from utils.error_utils import Errors
-from utils.dict_utils import DefaultDict
+from utils.datetime import *
+from utils.error import Errors
+from utils.dict import DefaultDict
 
 
 class TradingScheduler(object):

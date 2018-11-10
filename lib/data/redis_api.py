@@ -5,8 +5,8 @@
 import json
 import time
 from datetime import datetime
-from utils.error_utils import Errors
-from utils.dict_utils import DefaultDict
+from utils.error import Errors
+from utils.dict import DefaultDict
 from . redis_base import (
     redis_client,
     RedisCollection,

@@ -2,7 +2,7 @@
 # **********************************************************************************#
 #     File: trading base.
 # **********************************************************************************#
-from utils.datetime_utils import get_clearing_date_of
+from utils.datetime import get_clearing_date_of
 from . context.parameters import SimulationParameters
 from . context.strategy import TradingStrategy
 from . trade import Commission, Slippage

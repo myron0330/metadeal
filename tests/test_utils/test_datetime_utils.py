@@ -3,7 +3,7 @@
 #     File:
 # **********************************************************************************#
 from unittest import TestCase
-from utils.datetime_utils import *
+from utils.datetime import *
 from datetime import datetime
 
 

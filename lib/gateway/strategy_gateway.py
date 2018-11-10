@@ -4,7 +4,7 @@
 # **********************************************************************************#
 import requests
 import traceback
-from utils.decorator_utils import mutex_lock
+from utils.decorator import mutex_lock
 from . base_gateway import BaseStrategyGateway
 from .. configs import *
 

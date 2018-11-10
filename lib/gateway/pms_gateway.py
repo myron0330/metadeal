@@ -3,7 +3,7 @@
 #     File: PMS gateway file
 #   Author: Myron
 # **********************************************************************************#
-from utils.dict_utils import (
+from utils.dict import (
     DefaultDict,
     CompositeDict
 )

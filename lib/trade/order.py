@@ -2,7 +2,7 @@
 import json
 import numpy as np
 from uuid import uuid1
-from utils.error_utils import Errors
+from utils.error import Errors
 from .. core.objects import ValueObject
 from .. core.enums import SecuritiesType
 
