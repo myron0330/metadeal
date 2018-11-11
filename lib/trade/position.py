@@ -10,140 +10,20 @@ from utils.exceptions import *
 from . base import SecuritiesType
 
 
-def choose_position(account_type):
+def choose_position(security_type):
     """
-    Choose position by account type.
+    Choose position by security type.
     Args:
-        account_type(string): account type.
+        security_type(string): security type.
 
     Returns:
         obj: Position object
     """
-    if account_type == SecuritiesType.futures:
+    if security_type == SecuritiesType.futures:
         position_obj = FuturesPosition
     else:
-        raise Errors.INVALID_ACCOUNT_TYPE
+        raise ExceptionsFormat.INVALID_SECURITY_TYPE.format(security_type)
     return position_obj
-
-
-class Position(object):
-
-    """
-    """
-    __slots__ = [
-        'symbol',
-        'amount',
-        'cost',
-        'profit',
-        'value',
-        'available_amount',
-        'dividends',
-        'today_profit',
-        'today_offset_profit']
-
-    def __init__(self, symbol, amount, cost, profit=0.0, value=None,
-                 available_amount=0, today_profit=0, today_offset_profit=0):
-        self.symbol = symbol
-        self.amount = amount
-        self.cost = cost
-        self.profit = profit
-        self.value = value
-        self.available_amount = available_amount
-        self.dividends = None
-        self.today_profit = today_profit
-        self.today_offset_profit = today_offset_profit
-
-    def evaluate(self, price, pre_close_price=0):
-        self.value = price * self.amount
-        self.profit = (price - self.cost) * self.amount
-        self.today_profit = \
-            round((price - pre_close_price) * self.amount + self.today_offset_profit, 2)
-
-    @staticmethod
-    def from_dict(position_dict, position_cost_dict):
-        return {symbol: Position(symbol, pos, position_cost_dict.get(symbol), 0.0, pos) for symbol, pos
-                in position_dict.items()}
-
-    def to_dict(self):
-        """
-        To dict
-        """
-        return {
-            'symbol': self.symbol,
-            'amount': self.amount,
-            'cost': self.cost,
-            'profit': self.profit,
-            'value': self.value,
-            'available_amount': self.available_amount,
-            'dividends': self.dividends,
-            'today_profit': self.today_profit,
-            'today_offset_profit': self.today_offset_profit
-        }
-
-    def __getitem__(self, key, default=None):
-        item_value = getattr(self, key) if getattr(self, key) else default
-        return item_value
-
-    def __repr__(self):
-        return "Position(symbol: {}, amount: {}, available_amount: {}, cost: {}, profit: {}, " \
-               "value: {})".format(self.symbol, self.amount, self.available_amount,
-                                   self.cost, self.profit, self.value)
-
-
-class MetaPosition(Position):
-    """
-    Meta position
-    """
-
-    def __init__(self, symbol, amount, cost, profit=0.0, value=None, available_amount=0,
-                 dividends=None, total_cost=None, today_profit=0, today_offset_profit=0):
-        super(MetaPosition, self).__init__(symbol, amount, cost,
-                                           profit=profit, value=value,
-                                           available_amount=available_amount,
-                                           today_profit=today_profit,
-                                           today_offset_profit=today_offset_profit)
-        self.total_cost = total_cost or self.cost * self.amount
-        self.dividends = dividends
-
-    @classmethod
-    def from_request(cls, request):
-        """
-        Generate new position from request
-
-        Args:
-            request(dict): request database
-        """
-        return cls(**request)
-
-    @classmethod
-    def from_query(cls, query_data):
-        """
-        Recover existed order from query database
-
-        Args:
-            query_data(dict): query database
-        """
-        position = cls(**query_data)
-        position.dividends = query_data.get('dividends')
-        return position
-
-    def to_database_item(self):
-        """
-        To redis item
-        """
-        redis_item = {
-            'symbol': self.symbol,
-            'amount': self.amount,
-            'cost': self.cost,
-            'total_cost': self.total_cost,
-            'profit': self.profit,
-            'value': self.value,
-            'available_amount': self.available_amount,
-            'dividends': None
-        }
-        if self.dividends:
-            redis_item['dividends'] = self.dividends.to_dict()
-        return redis_item
 
 
 class LongShortPosition(object):
@@ -266,19 +146,36 @@ class LongShortPosition(object):
         }
 
     def get(self, key, default=None):
+        """
+        Get the value of a key with it's default to be appointed.
+        Args:
+            key(obj): the key of the dict
+            default(obj): the default value
+
+        Returns:
+            obj: the value
+        """
         return self.__dict__.get(key, default)
 
     def __repr__(self):
         return "{}(symbol: {}, price: {}, long_amount: {}, short_amount: {}, " \
                "long_margin: {}, short_margin: {}," \
-               "long_cost: {}, short_cost: {}, profit: {})".format(self.__class__.__name__, self.symbol, self.price, self.long_amount,
-                                                                   self.short_amount, self.long_margin,
-                                                                   self.short_margin, self.long_cost,
-                                                                   self.short_cost, self.profit)
+               "long_cost: {}, short_cost: {}, profit: {})".format(self.__class__.__name__,
+                                                                   self.symbol,
+                                                                   self.price,
+                                                                   self.long_amount,
+                                                                   self.short_amount,
+                                                                   self.long_margin,
+                                                                   self.short_margin,
+                                                                   self.long_cost,
+                                                                   self.short_cost,
+                                                                   self.profit)
 
 
 class FuturesPosition(LongShortPosition):
-
+    """
+    Futures position.
+    """
     def __init__(self, symbol=None, price=None, long_amount=0, short_amount=0, long_margin=0, short_margin=0,
                  long_cost=0, short_cost=0, value=0, profit=0, today_long_open=0, today_short_open=0,
                  today_profit=0, offset_profit=0, pre_settlement_price=0, settlement_price=0,
@@ -312,7 +209,7 @@ class FuturesPosition(LongShortPosition):
         """
         amount = self.long_amount if trade.direction == 1 else self.short_amount
         if amount < trade.filled_amount:
-            raise Errors.INVALID_FILLED_AMOUNT
+            raise ExceptionsFormat.INVALID_FILLED_AMOUNT.format(trade.filled_amount)
         cost = self.long_cost if trade.direction == 1 else self.short_cost
         close_pnl = trade.direction * (trade.transact_price - cost) * trade.filled_amount * multiplier
         return close_pnl
@@ -385,67 +282,3 @@ class FuturesPosition(LongShortPosition):
             'offset_profit': self.offset_profit
         }
         return redis_item
-
-
-class DigitalCurrencyPosition(object):
-
-    def __init__(self, currency=None, free=0, used=0, exchange=None, cost=0, profit=0.0, value=None):
-        self.currency = currency
-        self.free = free
-        self.used = used
-        self.exchange = exchange
-        self.cost = cost
-        self.profit = profit
-        self.value = value
-
-    @classmethod
-    def from_subscribe(cls, item):
-        """
-        Generate from subscribe.
-
-        Args:
-            item(dict): position item
-        """
-        parameters = {
-            'currency': item['currency'],
-            'free': item['available'],
-            'used': item['amount'] - item['available'],
-            'exchange': item['exchange']
-        }
-        return cls(**parameters)
-
-    @property
-    def total(self):
-        """
-        Total amount
-        """
-        return self.free + self.used
-
-    def evaluate(self, price):
-        # todo. adapt to legal tender
-        if price:
-            self.value = price * self.total
-            self.profit = (price - self.cost) * self.total
-
-    def detail(self):
-        """
-        将相关信息显示为字典
-        """
-        return {
-            'currency': self.currency,
-            'free': self.free,
-            'used': self.used,
-            'total': self.total,
-            'exchange': self.exchange,
-            'cost': self.cost,
-            'profit': self.profit,
-            'value': self.value
-        }
-
-    def __getitem__(self, key, default=None):
-        item_value = self.__getattribute__(key) if self.__getattribute__(key) else default
-        return item_value
-
-    def __repr__(self):
-        return "DigitalCurrencyPosition(currency: {}, free: {}, used: {}, total: {}, exchange: {})".format(
-            self.currency, self.free, self.used, self.total, self.exchange)
