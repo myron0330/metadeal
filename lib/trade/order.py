@@ -1,10 +1,16 @@
-# -*- coding: utf-8 -*-
+"""
+# -*- coding: UTF-8 -*-
+# **********************************************************************************#
+#     File:
+#   Author: Myron
+# **********************************************************************************#
+"""
 import json
 import numpy as np
 from uuid import uuid1
 from utils.error import Errors
+from . base import SecuritiesType
 from .. core.objects import ValueObject
-from .. core.enums import SecuritiesType
 
 
 def choose_order(account_type):
@@ -122,7 +128,7 @@ class BaseOrder(ValueObject):
         self.commission = commission
 
     def __repr__(self):
-        repr_dict = {key: unicode(value) for key, value in self.__dict__.iteritems()}
+        repr_dict = {key: str(value) for key, value in self.__dict__.items()}
         return ''.join(['Order', json.dumps(repr_dict).replace('"_', '').replace('"', '').replace('{', '(').
                        replace('}', ')').replace('null', 'None')])
 

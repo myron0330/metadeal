@@ -1,7 +1,13 @@
-# -*- coding: utf-8 -*-
+"""
+# -*- coding: UTF-8 -*-
+# **********************************************************************************#
+#     File: position file.
+#   Author: Myron
+# **********************************************************************************#
+"""
 from __future__ import division
-from utils.error import Errors
-from .. core.enums import SecuritiesType
+from utils.exceptions import *
+from . base import SecuritiesType
 
 
 def choose_position(account_type):
@@ -56,7 +62,7 @@ class Position(object):
     @staticmethod
     def from_dict(position_dict, position_cost_dict):
         return {symbol: Position(symbol, pos, position_cost_dict.get(symbol), 0.0, pos) for symbol, pos
-                in position_dict.iteritems()}
+                in position_dict.items()}
 
     def to_dict(self):
         """

@@ -1,7 +1,10 @@
-# -*- coding: utf-8 -*-
+"""
+# -*- coding: UTF-8 -*-
 # **********************************************************************************#
-#     File: Portfolio file
+#     File: portfolio file.
+#   Author: Myron
 # **********************************************************************************#
+"""
 
 
 class StockPortfolio(object):
@@ -11,12 +14,12 @@ class StockPortfolio(object):
     def __init__(self, cash, positions=None):
         self.cash = cash
         self.positions = positions if positions else dict()
-        self.avail_secpos = {sec: pos.amount for sec, pos in self.positions.iteritems()}
+        self.avail_secpos = {sec: pos.amount for sec, pos in self.positions.items()}
         self.set_avail_secpos()
         self.init_value_filled = False
 
     def fill_init_cost(self, init_prices):
-        for sec, position in self.positions.iteritems():
+        for sec, position in self.positions.items():
             if position.cost is None:
                 position.cost = init_prices[sec]
                 position.value = init_prices[sec] * position.amount
@@ -36,31 +39,31 @@ class StockPortfolio(object):
         stock_portfolio = cls(cash)
         stock_portfolio.positions = positions
         stock_portfolio.avail_secpos = {security: position.available_amount
-                                        for security, position in positions.iteritems()}
+                                        for security, position in positions.items()}
         return stock_portfolio
 
     @property
     def seccost(self):
-        return {sec: pos.cost for sec, pos in self.positions.iteritems()}
+        return {sec: pos.cost for sec, pos in self.positions.items()}
 
     @property
     def secpos(self):
-        return {sec: pos.amount for sec, pos in self.positions.iteritems()}
+        return {sec: pos.amount for sec, pos in self.positions.items()}
 
     @property
     def secpl(self):
-        return {sec: pos.profit for sec, pos in self.positions.iteritems()}
+        return {sec: pos.profit for sec, pos in self.positions.items()}
 
     @property
     def secval(self):
-        return {sec: pos.value for sec, pos in self.positions.iteritems()}
+        return {sec: pos.value for sec, pos in self.positions.items()}
 
     @property
     def securities(self):
         """
         仓位中的所有证券列表
         """
-        return [s for s, pos in self.positions.iteritems() if pos.amount > 0]
+        return [s for s, pos in self.positions.items() if pos.amount > 0]
 
     def evaluate(self, data):
         """
@@ -74,7 +77,7 @@ class StockPortfolio(object):
         """
 
         v = self.cash
-        for sec, pos in self.positions.iteritems():
+        for sec, pos in self.positions.items():
             p = data.at[sec, 'closePrice']
             pos.value = p * pos.amount
             pos.profit = (p - pos.cost) * pos.amount
@@ -85,7 +88,7 @@ class StockPortfolio(object):
         """
         设置可卖头寸
         """
-        for symbol, position in self.positions.iteritems():
+        for symbol, position in self.positions.items():
             self.avail_secpos[symbol] = position.amount
             position.available_amount = position.amount
 

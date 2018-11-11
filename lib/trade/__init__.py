@@ -1,8 +1,9 @@
+"""
 # -*- coding: UTF-8 -*-
 # **********************************************************************************#
-#     File: Trade items file.
-#   Author: Myron
+#     File:
 # **********************************************************************************#
+"""
 from . blotter import Blotter
 from . cost import Commission, Slippage
 from . order import (
