@@ -74,6 +74,7 @@ class ExceptionsFormat(BaseExceptionEnumerate):
     INVALID_SECURITY_TYPE = TradeException(error_wrapper(500, 'Invalid security type: {}.'))
     INVALID_FILLED_AMOUNT = TradeException(error_wrapper(500, 'Invalid filled amount: {}.'))
 
+
 __all__ = [
     'Exceptions',
     'ExceptionsFormat'
